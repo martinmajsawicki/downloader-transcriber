@@ -6,6 +6,11 @@ import threading
 import os
 import time
 from datetime import datetime
+import shutil
+import subprocess
+import sys
+import json
+from urllib.request import urlopen
 
 import downloader
 import transcriber
@@ -251,6 +256,95 @@ def main(page: ft.Page):
         ], spacing=4),
     )
 
+    # ── Dependency warnings (populated at startup by background check) ──
+    dep_warnings = ft.Column([], spacing=4)
+
+    def _check_dependencies():
+        """Background check: JS runtime for YouTube + yt-dlp updates."""
+        items = []
+
+        # 1. JavaScript runtime — required by yt-dlp for YouTube anti-bot
+        js_found = any(shutil.which(c) for c in ('deno', 'node', 'bun'))
+        if not js_found:
+            items.append(ft.Container(
+                content=ft.Column([
+                    ft.Text("⚠ Brak Deno — YouTube może blokować",
+                            size=10, color=ERR, weight=ft.FontWeight.W_600),
+                    ft.Text("brew install deno", size=9, color=T3,
+                            font_family="Mono", selectable=True),
+                ], spacing=2),
+                bgcolor="#FEE2E2", border_radius=6,
+                padding=ft.Padding(left=8, right=8, top=6, bottom=6),
+            ))
+
+        # 2. yt-dlp version check against PyPI
+        try:
+            import yt_dlp.version
+            current = yt_dlp.version.__version__
+            resp = urlopen("https://pypi.org/pypi/yt-dlp/json", timeout=5)
+            data = json.loads(resp.read())
+            latest = data["info"]["version"]
+            if current != latest:
+                update_label = ft.Text(
+                    "Aktualizuj", size=9, color="#D97706",
+                    weight=ft.FontWeight.W_600,
+                )
+
+                def do_update(_):
+                    def _run():
+                        update_label.value = "Aktualizuję…"
+                        try:
+                            page.update()
+                        except Exception:
+                            pass
+                        try:
+                            subprocess.run(
+                                [sys.executable, '-m', 'pip', 'install',
+                                 '--upgrade', 'yt-dlp'],
+                                capture_output=True, timeout=120,
+                            )
+                            update_label.value = f"✓ {latest}"
+                            update_label.color = OK
+                        except Exception:
+                            update_label.value = "Błąd"
+                            update_label.color = ERR
+                        try:
+                            page.update()
+                        except Exception:
+                            pass
+                    threading.Thread(target=_run, daemon=True).start()
+
+                update_btn = ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.SYSTEM_UPDATE_ALT, size=11, color="#D97706"),
+                        update_label,
+                    ], spacing=3, tight=True),
+                    on_click=do_update, ink=True, border_radius=4,
+                    padding=ft.Padding(left=6, right=6, top=3, bottom=3),
+                )
+
+                items.append(ft.Container(
+                    content=ft.Row([
+                        ft.Column([
+                            ft.Text(f"yt-dlp {current}", size=10, color="#D97706",
+                                    weight=ft.FontWeight.W_600),
+                            ft.Text(f"Dostępna: {latest}", size=9, color=T3),
+                        ], spacing=1, expand=True),
+                        update_btn,
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    bgcolor="#FEF3C7", border_radius=6,
+                    padding=ft.Padding(left=8, right=8, top=6, bottom=6),
+                ))
+        except Exception:
+            pass
+
+        if items:
+            dep_warnings.controls = items
+            try:
+                page.update()
+            except Exception:
+                pass
+
     # ── Sidebar layout ──
     sidebar = ft.Container(
         content=ft.Column([
@@ -289,8 +383,9 @@ def main(page: ft.Page):
             ft.Container(height=8),
             analyze_btn,
 
-            # Push steps to bottom
+            # Push warnings + steps to bottom
             ft.Container(expand=True),
+            dep_warnings,
             step_section,
         ], spacing=0, expand=True, scroll=ft.ScrollMode.AUTO),
         width=310, bgcolor=SURF,
@@ -664,6 +759,9 @@ def main(page: ft.Page):
     # ── Layout ──
     body = ft.Row([sidebar, main_area], expand=True, spacing=0)
     page.add(body)
+
+    # Background startup checks (JS runtime + yt-dlp version)
+    threading.Thread(target=_check_dependencies, daemon=True).start()
 
 
 if __name__ == "__main__":
