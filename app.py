@@ -445,19 +445,23 @@ def main(page: ft.Page):
         def work():
             nonlocal current_transcript, last_mp3_path
             timer_running = threading.Event()
+            # Shared phase text — only timer reads it and calls page.update()
+            phase_text = [""]
+
+            def set_phase(msg):
+                """Set current phase description (timer merges it with elapsed time)."""
+                phase_text[0] = msg
 
             def start_timer(step_idx):
-                """Live elapsed timer on active step."""
+                """Live elapsed timer — sole owner of detail updates + page.update()."""
                 timer_running.set()
                 t_start = time.time()
                 def tick():
                     while timer_running.is_set():
                         elapsed = int(time.time() - t_start)
-                        detail = steps[step_idx]["detail"].value
-                        # Append timer to existing detail text
-                        base = detail.split(" · ")[0] if " · " in detail else detail
-                        if base and not base.endswith("s"):
-                            steps[step_idx]["detail"].value = f"{base} · {elapsed}s"
+                        phase = phase_text[0]
+                        if phase:
+                            steps[step_idx]["detail"].value = f"{phase} · {elapsed}s"
                         else:
                             steps[step_idx]["detail"].value = f"{elapsed}s"
                         try:
@@ -472,24 +476,20 @@ def main(page: ft.Page):
                 timer_running.clear()
 
             # Step 1: Download
-            set_step(0, STEP_ACTIVE, "Connecting...")
+            set_step(0, STEP_ACTIVE)
+            set_phase("Connecting...")
             page.update()
             t0 = start_timer(0)
 
             download_error_msg = ""
 
             def on_download_progress(pct, msg):
-                set_step(0, STEP_ACTIVE, msg)
-                try:
-                    page.update()
-                except Exception:
-                    pass
+                set_phase(msg)
 
             def on_download_log(msg):
                 nonlocal download_error_msg
                 if "error" in msg.lower() or "Error" in msg:
                     download_error_msg = msg
-                print(f"[download] {msg}")
 
             mp3 = downloader.download_audio_as_mp3(
                 url, output_path=DOWNLOADS_DIR,
@@ -508,18 +508,15 @@ def main(page: ft.Page):
             page.update()
 
             # Step 2: Transcribe
-            set_step(1, STEP_ACTIVE, "Starting...")
+            set_step(1, STEP_ACTIVE)
+            set_phase("Starting...")
             page.update()
             t0 = start_timer(1)
             lang_val = None if lang_dd.value == "auto" else lang_dd.value
             ctx = context_input.value.strip() or None
 
             def on_transcribe_phase(msg):
-                set_step(1, STEP_ACTIVE, msg)
-                try:
-                    page.update()
-                except Exception:
-                    pass
+                set_phase(msg)
 
             text = transcriber.transcribe_audio(
                 mp3, language=lang_val, model_size=model_dd.value,
@@ -570,24 +567,44 @@ def main(page: ft.Page):
         nonlocal current_analysis
         set_processing(True)
         txt_len = f"{len(current_transcript):,}".replace(",", " ")
-        set_step(2, STEP_ACTIVE, f"Sending {txt_len} chars...")
+        set_step(2, STEP_ACTIVE)
         page.update()
 
         def work():
             nonlocal current_analysis
+            timer_running = threading.Event()
+            phase_text = [""]
+
+            def set_phase(msg):
+                phase_text[0] = msg
+
+            timer_running.set()
             t0 = time.time()
+            def tick():
+                while timer_running.is_set():
+                    elapsed = int(time.time() - t0)
+                    phase = phase_text[0]
+                    if phase:
+                        steps[2]["detail"].value = f"{phase} · {elapsed}s"
+                    else:
+                        steps[2]["detail"].value = f"{elapsed}s"
+                    try:
+                        page.update()
+                    except Exception:
+                        break
+                    time.sleep(1)
+            threading.Thread(target=tick, daemon=True).start()
+
+            set_phase(f"Sending {txt_len} chars...")
 
             def on_analyze_log(msg):
                 if "Sending" in msg:
-                    set_step(2, STEP_ACTIVE, f"Waiting for response...")
+                    set_phase("Waiting for response...")
                 elif "Response" in msg:
-                    set_step(2, STEP_ACTIVE, "Processing...")
-                try:
-                    page.update()
-                except Exception:
-                    pass
+                    set_phase("Processing...")
 
             result = analyzer.analyze_text(current_transcript, prompt, api_key, log_fn=on_analyze_log)
+            timer_running.clear()
             dt = f"{time.time() - t0:.1f}s"
             if not result:
                 set_step(2, STEP_ERROR, "Błąd API")

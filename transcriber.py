@@ -1,5 +1,30 @@
 import sys
 import os
+import subprocess
+
+
+def _get_audio_duration(audio_path):
+    """Get audio duration in seconds using ffprobe. Returns None on failure."""
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path],
+            capture_output=True, text=True, timeout=10,
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return None
+
+
+def _format_duration(seconds):
+    """Format seconds as M:SS or H:MM:SS."""
+    seconds = int(seconds)
+    if seconds >= 3600:
+        h, rest = divmod(seconds, 3600)
+        m, s = divmod(rest, 60)
+        return f"{h}:{m:02d}:{s:02d}"
+    m, s = divmod(seconds, 60)
+    return f"{m}:{s:02d}"
 
 
 def transcribe_audio(audio_path, language=None, model_size="base", initial_prompt=None,
@@ -27,6 +52,10 @@ def transcribe_audio(audio_path, language=None, model_size="base", initial_promp
         log_fn(f"Audio file not found: {audio_path}")
         return None
 
+    # Get audio duration for progress display
+    duration = _get_audio_duration(audio_path)
+    duration_str = _format_duration(duration) if duration else None
+
     # Phase 1: Load model
     phase(f"Loading model ({model_size})...")
     try:
@@ -35,9 +64,12 @@ def transcribe_audio(audio_path, language=None, model_size="base", initial_promp
         log_fn(f"Model loading error: {e}")
         return None
 
-    # Phase 2: Prepare
-    file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-    phase(f"Transcribing {file_size_mb:.0f} MB...")
+    # Phase 2: Transcribe
+    if duration_str:
+        phase(f"Transcribing {duration_str} audio")
+    else:
+        file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+        phase(f"Transcribing {file_size_mb:.0f} MB")
 
     decode_options = {}
     if language and language.lower() not in ['auto', 'none', '']:
@@ -52,7 +84,6 @@ def transcribe_audio(audio_path, language=None, model_size="base", initial_promp
     use_fp16 = torch.cuda.is_available()
     log_fn(f"FP16: {'yes (GPU)' if use_fp16 else 'no (CPU)'}")
 
-    # Phase 3: Transcribe
     try:
         result = model.transcribe(audio_path, fp16=use_fp16, **decode_options)
         lang = result.get('language', '?')

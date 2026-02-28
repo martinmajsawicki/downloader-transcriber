@@ -31,13 +31,21 @@ def analyze_text(text: str, prompt: str, api_key: str,
         api_key=api_key,
     )
 
+    # Prepend context about source material type
+    VIDEO_CONTEXT = (
+        "Source material: transcription of a YouTube video recording. "
+        "The language is spoken (not written) — expect informal tone, "
+        "filler words, and conversational structure.\n\n"
+    )
+    system_prompt = VIDEO_CONTEXT + prompt
+
     log_fn(f"Sending to {model.split('/')[-1]}...")
 
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": prompt},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text},
             ],
         )
