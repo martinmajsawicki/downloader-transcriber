@@ -177,10 +177,8 @@ def main(page: ft.Page):
         value="turbo", border_radius=8, border_color="#D1D5DB", focused_border_color=ACC,
         content_padding=8, text_size=12, height=44, expand=True,
         options=[
-            ft.dropdown.Option("turbo", "Turbo (szybki + dokładny)"),
-            ft.dropdown.Option("base", "Base (najszybszy)"),
-            ft.dropdown.Option("small", "Small"),
-            ft.dropdown.Option("medium", "Medium (wolny)"),
+            ft.dropdown.Option("turbo", "Turbo (rekomendowany)"),
+            ft.dropdown.Option("base", "Base (lekki)"),
         ],
         label="Model", label_style=ft.TextStyle(size=11, color=T3),
     )
