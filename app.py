@@ -15,6 +15,18 @@ import vault
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOADS_DIR = os.path.join(BASE_DIR, "downloads")
 
+DEFAULT_ANALYSIS_PROMPT = """\
+Przeanalizuj tę transkrypcję wideo o technologii/AI. Podaj:
+
+1. **Ocena treści** — czy materiał jest wartościowy, czy to głównie hype? Jakość argumentów.
+2. **Kluczowe insighty** — co nowego lub interesującego wnosi? Główne tezy.
+3. **Praktyczne zastosowania** — konkretne use cases, narzędzia, techniki.
+4. **Realne możliwości vs. obietnice** — co naprawdę działa, a co jest przesadzone?
+5. **Wymagane kompetencje** — jakie ludzkie umiejętności są potrzebne, żeby skorzystać?
+6. **Wnioski** — czy warto się tym zająć? Dla kogo jest ten materiał?
+
+Bądź konkretny i krytyczny. Nie powtarzaj treści — analizuj i oceniaj."""
+
 
 def _versioned_path(base_path, suffix=""):
     """
@@ -158,7 +170,7 @@ def main(page: ft.Page):
 
     # ── Analysis prompt ──
     analysis_prompt = ft.TextField(
-        hint_text="np. Znajdź praktyczne porady i podaj w punktach...",
+        hint_text="Domyślnie: ocena, insighty, use cases, krytyka...\nWpisz własne polecenie, żeby zastąpić.",
         border_radius=8, border_color="#D1D5DB", focused_border_color=ACC,
         bgcolor="#F9FAFB", focused_bgcolor=SURF,
         content_padding=ft.Padding(left=12, right=12, top=8, bottom=8),
@@ -564,11 +576,7 @@ def main(page: ft.Page):
             set_step(2, STEP_ERROR, "Najpierw transkrybuj")
             page.update()
             return
-        prompt = analysis_prompt.value.strip()
-        if not prompt:
-            set_step(2, STEP_ERROR, "Wpisz polecenie")
-            page.update()
-            return
+        prompt = analysis_prompt.value.strip() or DEFAULT_ANALYSIS_PROMPT
         api_key = key_input.value.strip()
         if not api_key:
             set_step(2, STEP_ERROR, "Brak klucza API")
