@@ -23,7 +23,7 @@ def main(page: ft.Page):
     page.bgcolor = "#F4F5F7"
     page.padding = 0
 
-    # ── Paleta ──
+    # ── Palette ──
     ACC = "#6366F1"
     ACC2 = "#8B5CF6"
     SURF = "#FFFFFF"
@@ -48,6 +48,7 @@ def main(page: ft.Page):
     last_mp3_path = ""
 
     # ── Helpers ──
+    # Note: UI-facing strings (labels, hints, status text) are in Polish.
     def label_row(text):
         return ft.Text(text, size=10, weight=ft.FontWeight.W_600, color=T3,
                        font_family="Inter-Medium", style=ft.TextStyle(letter_spacing=0.4))
@@ -415,7 +416,7 @@ def main(page: ft.Page):
     )
 
     # ══════════════════════════════════════════
-    #  LOGIKA
+    #  LOGIC
     # ══════════════════════════════════════════
     def set_processing(active):
         nonlocal is_processing
@@ -448,7 +449,7 @@ def main(page: ft.Page):
         def work():
             nonlocal current_transcript, last_mp3_path
             def log(msg):
-                pass  # logi idą przez step tracker
+                pass  # logs go through step tracker
 
             # Step 1: Download
             set_step(0, STEP_ACTIVE)

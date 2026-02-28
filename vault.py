@@ -1,4 +1,4 @@
-"""Prosty vault — zapis/odczyt klucza API z pliku .env."""
+"""Simple vault — read/write API key from .env file."""
 
 import os
 
@@ -6,7 +6,7 @@ _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 
 
 def save_key(key: str) -> None:
-    """Zapisz klucz API do .env."""
+    """Save the API key to .env, preserving other entries."""
     lines = []
     if os.path.exists(_ENV_PATH):
         with open(_ENV_PATH, "r") as f:
@@ -17,7 +17,7 @@ def save_key(key: str) -> None:
 
 
 def load_key() -> str:
-    """Wczytaj klucz API z .env. Zwraca pusty string jeśli brak."""
+    """Load the API key from .env. Returns empty string if not found."""
     if not os.path.exists(_ENV_PATH):
         return ""
     with open(_ENV_PATH, "r") as f:

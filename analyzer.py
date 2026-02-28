@@ -1,4 +1,4 @@
-"""Analiza tekstu przez OpenRouter API (domyślnie Gemini 2.0 Flash)."""
+"""Text analysis via OpenRouter API (default: Gemini 2.0 Flash)."""
 
 from openai import OpenAI
 
@@ -8,21 +8,21 @@ DEFAULT_MODEL = "google/gemini-2.0-flash-001"
 def analyze_text(text: str, prompt: str, api_key: str,
                  model: str = DEFAULT_MODEL, log_fn=print) -> str | None:
     """
-    Wysyła tekst do modelu LLM przez OpenRouter i zwraca opracowanie.
+    Send text to an LLM via OpenRouter and return the analysis.
 
-    :param text: Tekst źródłowy (np. transkrypcja).
-    :param prompt: Instrukcja użytkownika (np. "Znajdź porady...").
-    :param api_key: Klucz API OpenRouter.
-    :param model: ID modelu na OpenRouter.
-    :param log_fn: Callback do logowania postępu.
-    :return: Tekst opracowania lub None w razie błędu.
+    :param text: Source text (e.g. a transcription).
+    :param prompt: User instruction (e.g. "Find practical tips...").
+    :param api_key: OpenRouter API key.
+    :param model: Model ID on OpenRouter.
+    :param log_fn: Progress logging callback.
+    :return: Analysis text or None on error.
     """
     if not api_key:
-        log_fn("Brak klucza API.")
+        log_fn("Missing API key.")
         return None
 
     if not text:
-        log_fn("Brak tekstu do analizy.")
+        log_fn("No text to analyze.")
         return None
 
     client = OpenAI(
@@ -30,7 +30,7 @@ def analyze_text(text: str, prompt: str, api_key: str,
         api_key=api_key,
     )
 
-    log_fn(f"Wysyłanie do {model.split('/')[-1]}...")
+    log_fn(f"Sending to {model.split('/')[-1]}...")
 
     try:
         response = client.chat.completions.create(
@@ -41,8 +41,8 @@ def analyze_text(text: str, prompt: str, api_key: str,
             ],
         )
         result = response.choices[0].message.content
-        log_fn("Odpowiedź otrzymana.")
+        log_fn("Response received.")
         return result
     except Exception as e:
-        log_fn(f"Błąd API: {e}")
+        log_fn(f"API error: {e}")
         return None
