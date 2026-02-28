@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+downloads/
+.env
+dist/
+build/
+*.spec
+.claude/

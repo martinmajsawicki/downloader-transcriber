@@ -1,0 +1,4 @@
+flet>=0.81.0
+yt-dlp>=2026.2.0
+openai-whisper>=20250625
+openai>=1.0.0
