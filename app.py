@@ -117,6 +117,19 @@ def main(page: ft.Page):
         k = key_input.value.strip()
         if not k:
             return
+        # Validate key format — OpenRouter keys start with "sk-or-"
+        if not k.startswith("sk-or-"):
+            saved = vault.load_key()
+            if saved:
+                key_input.value = saved
+                key_status.value = "⚠ To nie klucz API — przywrócono"
+                key_status.color = ERR
+            else:
+                key_input.value = ""
+                key_status.value = "⚠ Klucz musi zaczynać się od sk-or-"
+                key_status.color = ERR
+            page.update()
+            return
         saved = vault.load_key()
         if k != saved:
             vault.save_key(k)
@@ -130,6 +143,9 @@ def main(page: ft.Page):
         if k and k == saved:
             key_status.value = "✓ Zapisany"
             key_status.color = OK
+        elif k and not k.startswith("sk-or-"):
+            key_status.value = "⚠ Klucz musi zaczynać się od sk-or-"
+            key_status.color = ERR
         elif k:
             key_status.value = "Niezapisany — kliknij poza pole"
             key_status.color = T3
