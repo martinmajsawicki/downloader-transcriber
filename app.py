@@ -476,6 +476,8 @@ def main(page: ft.Page):
             page.update()
             t0 = start_timer(0)
 
+            download_error_msg = ""
+
             def on_download_progress(pct, msg):
                 set_step(0, STEP_ACTIVE, msg)
                 try:
@@ -483,14 +485,22 @@ def main(page: ft.Page):
                 except Exception:
                     pass
 
+            def on_download_log(msg):
+                nonlocal download_error_msg
+                if "error" in msg.lower() or "Error" in msg:
+                    download_error_msg = msg
+                print(f"[download] {msg}")
+
             mp3 = downloader.download_audio_as_mp3(
                 url, output_path=DOWNLOADS_DIR,
+                log_fn=on_download_log,
                 progress_fn=on_download_progress,
             )
             stop_timer()
             dt = f"{time.time() - t0:.0f}s"
             if not mp3:
-                set_step(0, STEP_ERROR, "Nie udało się")
+                detail = download_error_msg or "Nie udało się"
+                set_step(0, STEP_ERROR, detail)
                 page.run_thread(set_processing, False)
                 return
             set_step(0, STEP_DONE, dt)
