@@ -1,7 +1,5 @@
 """Text analysis via OpenRouter API (default: Gemini 2.0 Flash)."""
 
-from openai import OpenAI
-
 DEFAULT_MODEL = "google/gemini-2.0-flash-001"
 
 
@@ -9,6 +7,7 @@ def analyze_text(text: str, prompt: str, api_key: str,
                  model: str = DEFAULT_MODEL, log_fn=print) -> str | None:
     """
     Send text to an LLM via OpenRouter and return the analysis.
+    OpenAI SDK import is deferred to first call for faster app startup.
 
     :param text: Source text (e.g. a transcription).
     :param prompt: User instruction (e.g. "Find practical tips...").
@@ -17,6 +16,8 @@ def analyze_text(text: str, prompt: str, api_key: str,
     :param log_fn: Progress logging callback.
     :return: Analysis text or None on error.
     """
+    from openai import OpenAI
+
     if not api_key:
         log_fn("Missing API key.")
         return None

@@ -1,5 +1,3 @@
-import whisper
-import torch
 import sys
 import os
 
@@ -8,6 +6,7 @@ def transcribe_audio(audio_path, language=None, model_size="base", initial_promp
                      log_fn=print, phase_fn=None):
     """
     Transcribe an audio file using a local Whisper model.
+    Heavy imports (whisper, torch) are deferred to first call for faster app startup.
 
     :param audio_path: Path to the audio file (e.g. .mp3).
     :param language: Expected language (e.g. 'pl', 'en'). If None, Whisper auto-detects.
@@ -16,6 +15,9 @@ def transcribe_audio(audio_path, language=None, model_size="base", initial_promp
     :param log_fn: Logging callback (default: print).
     :param phase_fn: Optional callback(phase_str) for live UI updates.
     """
+    import whisper
+    import torch
+
     def phase(msg):
         if phase_fn:
             phase_fn(msg)

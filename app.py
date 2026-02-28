@@ -82,10 +82,11 @@ def main(page: ft.Page):
         value=saved_key, password=True, can_reveal_password=True,
         hint_text="sk-or-...", border_radius=6, border_color="#D1D5DB",
         focused_border_color=ACC, bgcolor="#F9FAFB", focused_bgcolor=SURF,
-        content_padding=ft.Padding(left=10, right=10, top=8, bottom=8),
+        content_padding=ft.Padding(left=10, right=4, top=8, bottom=8),
         text_size=11, hint_style=ft.TextStyle(color=T3, size=11),
         on_change=lambda _: update_key_status(),
         on_blur=lambda _: save_api_key(),
+        on_submit=lambda _: save_api_key(),
     )
     key_status = ft.Text("✓ Zapisany" if saved_key else "", size=10, color=OK)
 
@@ -96,9 +97,9 @@ def main(page: ft.Page):
         saved = vault.load_key()
         if k != saved:
             vault.save_key(k)
-            key_status.value = "✓ Zapisany"
-            key_status.color = OK
-            page.update()
+        key_status.value = "✓ Zapisany"
+        key_status.color = OK
+        page.update()
 
     def update_key_status():
         k = key_input.value.strip()
@@ -107,7 +108,7 @@ def main(page: ft.Page):
             key_status.value = "✓ Zapisany"
             key_status.color = OK
         elif k:
-            key_status.value = "Niezapisany"
+            key_status.value = "Niezapisany — kliknij poza pole"
             key_status.color = T3
         else:
             key_status.value = ""
