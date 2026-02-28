@@ -70,6 +70,12 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
         'progress_hooks': [progress_hook],
         # Enable EJS challenge solver for YouTube anti-bot bypass
         'remote_components': ['ejs:github'],
+        # Retry logic — YouTube connections can be flaky
+        'retries': 3,
+        'fragment_retries': 5,
+        'socket_timeout': 30,
+        # Exclude deprecated YouTube client that causes 403 errors
+        'extractor_args': {'youtube': {'player_client': ['default', '-android_sdkless']}},
     }
 
     try:
