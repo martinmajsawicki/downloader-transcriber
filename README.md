@@ -1,35 +1,31 @@
 # Audio Studio (dTr)
 
-Desktopowa aplikacja macOS do pobierania audio z YouTube, transkrypcji lokalnym modelem Whisper i analizy tekstu przez AI.
+A macOS desktop app for downloading YouTube audio, transcribing it locally with OpenAI Whisper, and analyzing the text with AI.
 
-## Funkcje
+## Features
 
-- **Pobieranie audio** z YouTube (yt-dlp) do MP3
-- **Transkrypcja lokalna** modelem OpenAI Whisper (base / small / medium)
-- **Analiza AI** transkrypcji przez Gemini 2.0 Flash via OpenRouter
-- **Eksport** surowej transkrypcji i opracowania do `.txt`
-- **Kopiowanie** do schowka jednym klikiem
-- **Step tracker** z wizualnym statusem pipeline'u
-- **Vault** na klucz API OpenRouter (`.env`)
+- **Audio download** from YouTube (yt-dlp) to MP3
+- **Local transcription** with OpenAI Whisper (base / small / medium)
+- **AI analysis** of transcripts via Gemini 2.0 Flash on OpenRouter
+- **Export** raw transcription and AI analysis to `.txt`
+- **One-click copy** to clipboard
+- **Step tracker** with visual pipeline status
+- **API key vault** stored in `.env`
 
-## Wymagania
+## Requirements
 
 - Python 3.12+
-- FFmpeg (wymagany przez yt-dlp i Whisper)
-- macOS (testowane na ARM64 / Apple Silicon)
+- FFmpeg (required by yt-dlp and Whisper)
+- macOS (tested on ARM64 / Apple Silicon)
 
-## Instalacja
+## Setup
 
 ```bash
-# Klonowanie
-git clone <repo-url>
+git clone https://github.com/martinmajsawicki/downloader-transcriber.git
 cd downloader-transcriber
 
-# Virtualenv
 python -m venv venv
 source venv/bin/activate
-
-# Zależności
 pip install -r requirements.txt
 ```
 
@@ -39,24 +35,22 @@ pip install -r requirements.txt
 brew install ffmpeg
 ```
 
-## Uruchamianie
+## Usage
 
 ```bash
 source venv/bin/activate
 python app.py
 ```
 
-Aplikacja otworzy okno 1060x700 z dwupanelowym layoutem:
-- **Sidebar** (lewy) — URL, ustawienia, prompt AI, klucz API, step tracker
-- **Main area** (prawy) — zakładki Transkrypcja / Opracowanie
+The app opens a 1060x700 window with a two-panel layout:
+- **Sidebar** (left) — URL input, language/model settings, AI prompt, API key, step tracker
+- **Main area** (right) — Transcription / Analysis tabs with copy and export controls
 
-## Budowanie .app (macOS)
+## Building .app (macOS)
 
 ```bash
-# Wymagane jednorazowo
 pip install pyinstaller
 
-# Build
 flet pack app.py \
   -i assets/icon.icns \
   -n "Audio Studio" \
@@ -69,34 +63,34 @@ flet pack app.py \
   --add-data "vault.py:." \
   -y
 
-# Wynik w dist/Audio Studio.app
+# Output: dist/Audio Studio.app
 cp -R "dist/Audio Studio.app" /Applications/
 ```
 
-## Architektura
+## Architecture
 
 ```
-app.py            # UI (Flet 0.81) — layout, logika, step tracker
-downloader.py     # yt-dlp wrapper — zwraca sciezke MP3
+app.py            # UI (Flet 0.81) — layout, logic, step tracker
+downloader.py     # yt-dlp wrapper — returns MP3 path
 transcriber.py    # Whisper wrapper — auto fp16, log_fn callback
 analyzer.py       # OpenRouter client (OpenAI SDK) — Gemini 2.0 Flash
-vault.py          # Zapis/odczyt klucza API z .env
+vault.py          # API key read/write to .env
 assets/
-  icon.png        # Ikona aplikacji (512x512 PNG)
-  icon.icns       # Ikona macOS (iconset)
+  icon.png        # App icon (512x512 PNG)
+  icon.icns       # macOS icon (iconset)
 ```
 
-## Klucz API
+## API Key
 
-Aplikacja wymaga klucza OpenRouter do funkcji "Opracuj z AI":
+The AI analysis feature requires an OpenRouter API key:
 
-1. Zarejestruj sie na [openrouter.ai](https://openrouter.ai)
-2. Wygeneruj klucz API (prefix `sk-or-...`)
-3. Wklej w pole "Klucz OpenRouter" w sidebarze
-4. Kliknij ikone zapisu — klucz zostanie zapisany w `.env`
+1. Sign up at [openrouter.ai](https://openrouter.ai)
+2. Generate an API key (prefix `sk-or-...`)
+3. Paste it in the "OpenRouter Key" field in the sidebar
+4. Click the save icon — the key is stored in `.env`
 
-Model: `google/gemini-2.0-flash-001` ($0.10 / $0.40 za 1M tokenow)
+Model: `google/gemini-2.0-flash-001` ($0.10 / $0.40 per 1M tokens)
 
-## Licencja
+## License
 
-Projekt prywatny.
+Private project.
