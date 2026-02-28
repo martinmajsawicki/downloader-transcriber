@@ -5,6 +5,7 @@ import flet as ft
 import threading
 import os
 import time
+from datetime import datetime
 
 import downloader
 import transcriber
@@ -13,6 +14,16 @@ import vault
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOADS_DIR = os.path.join(BASE_DIR, "downloads")
+
+
+def _versioned_path(base_path, suffix=""):
+    """
+    Generate a versioned file path: <name><suffix>_YYYYMMDD_HHmm.txt
+    Example: downloads/Video Title_analiza_20260228_1430.txt
+    """
+    stem = os.path.splitext(base_path)[0]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    return f"{stem}{suffix}_{timestamp}.txt"
 
 
 def main(page: ft.Page):
@@ -378,7 +389,7 @@ def main(page: ft.Page):
         text = current_transcript if active_tab == 0 else current_analysis
         suffix = "" if active_tab == 0 else "_analiza"
         if text and last_mp3_path:
-            path = os.path.splitext(last_mp3_path)[0] + suffix + ".txt"
+            path = _versioned_path(last_mp3_path, suffix)
             with open(path, "w", encoding="utf-8") as f:
                 f.write(text)
             export_btn.content.controls[1].value = f"✓ {os.path.basename(path)}"
@@ -537,8 +548,8 @@ def main(page: ft.Page):
             export_btn.visible = True
             char_count.value = f"{len(text):,} zn.".replace(",", " ")
 
-            # Auto-save transcript
-            txt_path = os.path.splitext(mp3)[0] + ".txt"
+            # Auto-save transcript (versioned with date)
+            txt_path = _versioned_path(mp3)
             with open(txt_path, "w", encoding="utf-8") as f:
                 f.write(text)
 
@@ -615,9 +626,9 @@ def main(page: ft.Page):
             analysis_field.value = result
             analysis_empty.visible = False
 
-            # Auto-save analysis
+            # Auto-save analysis (versioned with date)
             if last_mp3_path:
-                path = os.path.splitext(last_mp3_path)[0] + "_analiza.txt"
+                path = _versioned_path(last_mp3_path, "_analiza")
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(result)
 
