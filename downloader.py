@@ -2,6 +2,19 @@ import yt_dlp
 import sys
 import os
 import glob
+import re
+
+
+def _normalize_youtube_url(url):
+    """Extract video ID from any YouTube URL format and return a clean watch URL.
+    Strips playlist params, tracking tokens, timestamps, and other noise.
+    Returns the original URL unchanged if it's not a recognized YouTube URL."""
+    url = url.strip()
+    pattern = r'(?:youtube\.com/watch\?.*?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/v/|youtube\.com/shorts/)([a-zA-Z0-9_-]{11})'
+    match = re.search(pattern, url)
+    if match:
+        return f"https://www.youtube.com/watch?v={match.group(1)}"
+    return url
 
 
 def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_fn=None):
@@ -15,6 +28,8 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    # Normalize URL — strip playlist params, tracking tokens, etc.
+    url = _normalize_youtube_url(url)
     log_fn(f"Starting audio download from: {url}")
 
     # Snapshot existing mp3 files before download (for reliable new-file detection)
@@ -51,6 +66,7 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
         'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
         'quiet': True,
         'no_warnings': True,
+        'noplaylist': True,
         'progress_hooks': [progress_hook],
         # Enable EJS challenge solver for YouTube anti-bot bypass
         'remote_components': ['ejs:github'],
