@@ -3,6 +3,17 @@ import os
 import subprocess
 
 
+# Model name mapping: UI key → HuggingFace repo (MLX-optimized)
+_MLX_MODELS = {
+    "tiny": "mlx-community/whisper-tiny-mlx",
+    "base": "mlx-community/whisper-base-mlx",
+    "small": "mlx-community/whisper-small-mlx",
+    "medium": "mlx-community/whisper-medium-mlx",
+    "large": "mlx-community/whisper-large-v3-mlx",
+    "turbo": "mlx-community/whisper-large-v3-turbo",
+}
+
+
 def _get_audio_duration(audio_path):
     """Get audio duration in seconds using ffprobe. Returns None on failure."""
     try:
@@ -27,21 +38,22 @@ def _format_duration(seconds):
     return f"{m}:{s:02d}"
 
 
-def transcribe_audio(audio_path, language=None, model_size="base", initial_prompt=None,
+def transcribe_audio(audio_path, language=None, model_size="turbo", initial_prompt=None,
                      log_fn=print, phase_fn=None):
     """
-    Transcribe an audio file using a local Whisper model.
-    Heavy imports (whisper, torch) are deferred to first call for faster app startup.
+    Transcribe an audio file using mlx-whisper (Apple Silicon GPU via MLX).
+    Runs in fp16 on the M-series GPU — ~3-4x faster than openai-whisper on CPU.
+
+    Models are downloaded on first use and cached in ~/.cache/huggingface/hub/.
 
     :param audio_path: Path to the audio file (e.g. .mp3).
     :param language: Expected language (e.g. 'pl', 'en'). If None, Whisper auto-detects.
-    :param model_size: Model size ('tiny', 'base', 'small', 'medium', 'large').
+    :param model_size: Model key ('tiny', 'base', 'small', 'medium', 'large', 'turbo').
     :param initial_prompt: Context hint to reduce hallucinations.
     :param log_fn: Logging callback (default: print).
     :param phase_fn: Optional callback(phase_str) for live UI updates.
     """
-    import whisper
-    import torch
+    import mlx_whisper
 
     def phase(msg):
         if phase_fn:
@@ -52,25 +64,21 @@ def transcribe_audio(audio_path, language=None, model_size="base", initial_promp
         log_fn(f"Audio file not found: {audio_path}")
         return None
 
-    # Get audio duration for progress display
+    # Resolve model HF repo
+    model_repo = _MLX_MODELS.get(model_size, _MLX_MODELS["turbo"])
+    model_label = model_size if model_size in _MLX_MODELS else "turbo"
+
+    # Audio duration for progress display
     duration = _get_audio_duration(audio_path)
     duration_str = _format_duration(duration) if duration else None
 
-    # Phase 1: Load model
-    phase(f"Loading model ({model_size})...")
-    try:
-        model = whisper.load_model(model_size)
-    except Exception as e:
-        log_fn(f"Model loading error: {e}")
-        return None
-
-    # Phase 2: Transcribe
     if duration_str:
-        phase(f"Transcribing {duration_str} audio")
+        phase(f"Transcribing {duration_str} ({model_label})")
     else:
         file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-        phase(f"Transcribing {file_size_mb:.0f} MB")
+        phase(f"Transcribing {file_size_mb:.0f} MB ({model_label})")
 
+    # Build decode options
     decode_options = {}
     if language and language.lower() not in ['auto', 'none', '']:
         decode_options["language"] = language
@@ -81,11 +89,15 @@ def transcribe_audio(audio_path, language=None, model_size="base", initial_promp
     if initial_prompt:
         decode_options["initial_prompt"] = initial_prompt
 
-    use_fp16 = torch.cuda.is_available()
-    log_fn(f"FP16: {'yes (GPU)' if use_fp16 else 'no (CPU)'}")
+    log_fn(f"Engine: mlx-whisper · {model_repo} · fp16")
 
     try:
-        result = model.transcribe(audio_path, fp16=use_fp16, **decode_options)
+        result = mlx_whisper.transcribe(
+            audio_path,
+            path_or_hf_repo=model_repo,
+            fp16=True,
+            **decode_options,
+        )
         lang = result.get('language', '?')
         phase(f"Done — {lang}")
         return result["text"]
@@ -101,7 +113,7 @@ if __name__ == "__main__":
 
     audio_file = sys.argv[1]
     lang = sys.argv[2] if len(sys.argv) > 2 else "auto"
-    mod_size = sys.argv[3] if len(sys.argv) > 3 else "base"
+    mod_size = sys.argv[3] if len(sys.argv) > 3 else "turbo"
     prompt = sys.argv[4] if len(sys.argv) > 4 else None
 
     text = transcribe_audio(audio_file, language=lang, model_size=mod_size, initial_prompt=prompt)
