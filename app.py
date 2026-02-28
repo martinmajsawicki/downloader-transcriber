@@ -85,25 +85,20 @@ def main(page: ft.Page):
         content_padding=ft.Padding(left=10, right=10, top=8, bottom=8),
         text_size=11, hint_style=ft.TextStyle(color=T3, size=11),
         on_change=lambda _: update_key_status(),
+        on_blur=lambda _: save_api_key(),
     )
     key_status = ft.Text("✓ Zapisany" if saved_key else "", size=10, color=OK)
-    key_save_btn = ft.Container(
-        content=ft.Icon(ft.Icons.SAVE_ROUNDED, color=ACC, size=14),
-        on_click=lambda _: save_api_key(), ink=True, border_radius=4,
-        padding=ft.Padding(left=6, right=6, top=6, bottom=6),
-        tooltip="Zapisz klucz",
-    )
 
     def save_api_key():
         k = key_input.value.strip()
-        if k:
+        if not k:
+            return
+        saved = vault.load_key()
+        if k != saved:
             vault.save_key(k)
             key_status.value = "✓ Zapisany"
             key_status.color = OK
-        else:
-            key_status.value = "Brak klucza"
-            key_status.color = ERR
-        page.update()
+            page.update()
 
     def update_key_status():
         k = key_input.value.strip()
@@ -225,7 +220,7 @@ def main(page: ft.Page):
                 label_row("KLUCZ OPENROUTER"),
             ], spacing=4),
             ft.Container(height=4),
-            ft.Row([key_input, key_save_btn], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            key_input,
             ft.Container(content=key_status, padding=ft.Padding(left=2, right=0, top=2, bottom=0)),
 
             ft.Container(height=12),
@@ -448,14 +443,50 @@ def main(page: ft.Page):
 
         def work():
             nonlocal current_transcript, last_mp3_path
-            def log(msg):
-                pass  # logs go through step tracker
+            timer_running = threading.Event()
+
+            def start_timer(step_idx):
+                """Live elapsed timer on active step."""
+                timer_running.set()
+                t_start = time.time()
+                def tick():
+                    while timer_running.is_set():
+                        elapsed = int(time.time() - t_start)
+                        detail = steps[step_idx]["detail"].value
+                        # Append timer to existing detail text
+                        base = detail.split(" · ")[0] if " · " in detail else detail
+                        if base and not base.endswith("s"):
+                            steps[step_idx]["detail"].value = f"{base} · {elapsed}s"
+                        else:
+                            steps[step_idx]["detail"].value = f"{elapsed}s"
+                        try:
+                            page.update()
+                        except Exception:
+                            break
+                        time.sleep(1)
+                threading.Thread(target=tick, daemon=True).start()
+                return t_start
+
+            def stop_timer():
+                timer_running.clear()
 
             # Step 1: Download
-            set_step(0, STEP_ACTIVE)
+            set_step(0, STEP_ACTIVE, "Connecting...")
             page.update()
-            t0 = time.time()
-            mp3 = downloader.download_audio_as_mp3(url, output_path=DOWNLOADS_DIR)
+            t0 = start_timer(0)
+
+            def on_download_progress(pct, msg):
+                set_step(0, STEP_ACTIVE, msg)
+                try:
+                    page.update()
+                except Exception:
+                    pass
+
+            mp3 = downloader.download_audio_as_mp3(
+                url, output_path=DOWNLOADS_DIR,
+                progress_fn=on_download_progress,
+            )
+            stop_timer()
             dt = f"{time.time() - t0:.0f}s"
             if not mp3:
                 set_step(0, STEP_ERROR, "Nie udało się")
@@ -466,12 +497,24 @@ def main(page: ft.Page):
             page.update()
 
             # Step 2: Transcribe
-            set_step(1, STEP_ACTIVE)
+            set_step(1, STEP_ACTIVE, "Starting...")
             page.update()
-            t0 = time.time()
+            t0 = start_timer(1)
             lang_val = None if lang_dd.value == "auto" else lang_dd.value
             ctx = context_input.value.strip() or None
-            text = transcriber.transcribe_audio(mp3, language=lang_val, model_size=model_dd.value, initial_prompt=ctx)
+
+            def on_transcribe_phase(msg):
+                set_step(1, STEP_ACTIVE, msg)
+                try:
+                    page.update()
+                except Exception:
+                    pass
+
+            text = transcriber.transcribe_audio(
+                mp3, language=lang_val, model_size=model_dd.value,
+                initial_prompt=ctx, phase_fn=on_transcribe_phase,
+            )
+            stop_timer()
             dt = f"{time.time() - t0:.0f}s"
             if not text:
                 set_step(1, STEP_ERROR, "Brak wyniku")
@@ -515,13 +558,25 @@ def main(page: ft.Page):
 
         nonlocal current_analysis
         set_processing(True)
-        set_step(2, STEP_ACTIVE)
+        txt_len = f"{len(current_transcript):,}".replace(",", " ")
+        set_step(2, STEP_ACTIVE, f"Sending {txt_len} chars...")
         page.update()
 
         def work():
             nonlocal current_analysis
             t0 = time.time()
-            result = analyzer.analyze_text(current_transcript, prompt, api_key)
+
+            def on_analyze_log(msg):
+                if "Sending" in msg:
+                    set_step(2, STEP_ACTIVE, f"Waiting for response...")
+                elif "Response" in msg:
+                    set_step(2, STEP_ACTIVE, "Processing...")
+                try:
+                    page.update()
+                except Exception:
+                    pass
+
+            result = analyzer.analyze_text(current_transcript, prompt, api_key, log_fn=on_analyze_log)
             dt = f"{time.time() - t0:.1f}s"
             if not result:
                 set_step(2, STEP_ERROR, "Błąd API")
