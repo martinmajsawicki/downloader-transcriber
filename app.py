@@ -29,6 +29,8 @@ import time
 from datetime import datetime
 
 import subprocess
+import sys
+import tempfile
 import downloader
 import transcriber
 import analyzer
@@ -191,43 +193,48 @@ class Api:
 
                 self._set_status(step="transcribing")
 
-                # Step 2: Transcribe
-                self._add_stamp("Transcribing...")
-                lang_val = settings.get("language", "auto")
-                if lang_val == "auto":
-                    lang_val = None
-                ctx = settings.get("context", "").strip() or None
-                model = settings.get("model", "turbo")
+                # Step 2: Transcribe (with cache)
+                # Check if a transcript already exists for this audio file
+                mp3_base = os.path.splitext(os.path.basename(mp3))[0]
+                cached_transcript = self._find_cached_transcript(mp3_base)
 
-                def on_phase(msg):
-                    with self._lock:
-                        if self._pipeline_status["stamps"]:
-                            self._pipeline_status["stamps"][-1] = f"Transcribing... {msg}"
+                if cached_transcript:
+                    self._add_stamp("Transcript found in library.")
+                    text = cached_transcript["text"]
+                    txt_path = cached_transcript["path"]
+                else:
+                    lang_val = settings.get("language", "auto")
+                    if lang_val == "auto":
+                        lang_val = None
+                    ctx = settings.get("context", "").strip() or None
+                    model = settings.get("model", "turbo")
 
-                text = transcriber.transcribe_audio(
-                    mp3,
-                    language=lang_val,
-                    model_size=model,
-                    initial_prompt=ctx,
-                    phase_fn=on_phase,
-                )
-                if not text:
-                    self._set_status(step="error", error="Transcription failed")
-                    self._add_stamp("Error: Transcription failed")
-                    return
+                    self._add_stamp("Transcribing...")
+
+                    # Run in subprocess to isolate Metal/GPU crashes
+                    text = self._transcribe_in_subprocess(mp3, lang_val, model, ctx)
+                    if not text:
+                        if self._cancel.is_set():
+                            # Cancellation handled — don't show error
+                            pass
+                        else:
+                            self._set_status(step="error", error="Transcription failed")
+                            self._add_stamp("Error: Transcription failed")
+                        return
+                    self._add_stamp("Transcribing... done.")
+
+                    # Auto-save transcript
+                    txt_path = _versioned_path(mp3, output_dir=TRANSCRIPTS_DIR)
+                    with open(txt_path, "w", encoding="utf-8") as f:
+                        f.write(text)
+
                 self._current_transcript = text
-                self._add_stamp("Transcribing... done.")
+                self._current_entry_path = txt_path
 
                 if self._cancel.is_set():
                     self._add_stamp("Cancelled.")
                     self._set_status(step="idle")
                     return
-
-                # Auto-save transcript
-                txt_path = _versioned_path(mp3, output_dir=TRANSCRIPTS_DIR)
-                with open(txt_path, "w", encoding="utf-8") as f:
-                    f.write(text)
-                self._current_entry_path = txt_path
 
                 # Step 3: Analyze (if API key available)
                 api_key = vault.load_key()
@@ -294,6 +301,119 @@ class Api:
     def _set_status(self, **kwargs):
         with self._lock:
             self._pipeline_status.update(kwargs)
+
+    # ── Transcription subprocess (Metal crash isolation) ──
+
+    def _transcribe_in_subprocess(self, mp3, lang, model, ctx):
+        """Run mlx-whisper in a subprocess to isolate Metal/GPU crashes.
+        If Metal SIGABRT occurs, only the subprocess dies — the main app survives.
+        Returns transcript text or None.
+        """
+        out_fd, out_path = tempfile.mkstemp(suffix=".txt", prefix="copysight_")
+        os.close(out_fd)
+
+        # Build a small script that imports transcriber and writes result to file
+        script = (
+            f"import transcriber, sys\n"
+            f"text = transcriber.transcribe_audio(\n"
+            f"    {mp3!r},\n"
+            f"    language={lang!r},\n"
+            f"    model_size={model!r},\n"
+            f"    initial_prompt={ctx!r},\n"
+            f")\n"
+            f"if text:\n"
+            f"    with open({out_path!r}, 'w', encoding='utf-8') as f:\n"
+            f"        f.write(text)\n"
+            f"    sys.exit(0)\n"
+            f"else:\n"
+            f"    sys.exit(1)\n"
+        )
+
+        proc = subprocess.Popen(
+            [sys.executable, "-c", script],
+            cwd=BASE_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy(),
+        )
+
+        # Poll for completion while checking cancel
+        while proc.poll() is None:
+            if self._cancel.is_set():
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                self._safe_unlink(out_path)
+                return None
+            time.sleep(0.5)
+
+        if proc.returncode != 0:
+            stderr = proc.stderr.read().decode("utf-8", errors="replace")[:200]
+            if proc.returncode < 0:
+                # Negative return = killed by signal (e.g. -6 = SIGABRT)
+                self._add_stamp(f"GPU error (signal {-proc.returncode}). Try again.")
+            elif stderr:
+                self._add_stamp(f"Error: {stderr[:80]}")
+            self._safe_unlink(out_path)
+            return None
+
+        # Read result
+        try:
+            with open(out_path, "r", encoding="utf-8") as f:
+                text = f.read()
+            self._safe_unlink(out_path)
+            return text if text.strip() else None
+        except OSError:
+            self._safe_unlink(out_path)
+            return None
+
+    @staticmethod
+    def _safe_unlink(path):
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+    # ── Cache ──
+
+    def _find_cached_transcript(self, mp3_base):
+        """Check if a transcript already exists for the given audio base name.
+        Returns {"text": ..., "path": ...} or None.
+        Picks the most recent transcript matching the base name.
+        """
+        if not os.path.exists(TRANSCRIPTS_DIR):
+            return None
+
+        candidates = []
+        for fname in os.listdir(TRANSCRIPTS_DIR):
+            if not fname.endswith(".txt"):
+                continue
+            # Strip timestamp suffix: Name_YYYYMMDD_HHMM.txt → Name
+            base = re.sub(r"_\d{8}_\d{4}\.txt$", "", fname)
+            if base == mp3_base:
+                fpath = os.path.join(TRANSCRIPTS_DIR, fname)
+                try:
+                    mtime = os.stat(fpath).st_mtime
+                    candidates.append((mtime, fpath))
+                except OSError:
+                    continue
+
+        if not candidates:
+            return None
+
+        # Use most recent transcript
+        candidates.sort(reverse=True)
+        best_path = candidates[0][1]
+        try:
+            with open(best_path, "r", encoding="utf-8") as f:
+                text = f.read()
+            if text.strip():
+                return {"text": text, "path": best_path}
+        except OSError:
+            pass
+        return None
 
     # ── Settings ──
 

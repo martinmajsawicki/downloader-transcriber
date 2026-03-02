@@ -188,6 +188,11 @@ function pollPipelineStatus() {
     if (!status) return;
     var stamps = status.stamps || [];
 
+    // Keep dots alive while pipeline is active (polling proves app is responsive)
+    if (status.step !== 'idle' && status.step !== 'done' && status.step !== 'error') {
+      lastUpdateTime = Date.now();
+    }
+
     // Check if last known stamp was updated in place (progress callbacks)
     if (lastStampCount > 0 && stamps.length >= lastStampCount) {
       var lastIdx = lastStampCount - 1;

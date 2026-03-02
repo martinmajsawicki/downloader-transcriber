@@ -163,6 +163,7 @@ Full design system documented in `brand/guidelines.md`.
 |---------|-----|
 | `ffmpeg: command not found` | `brew install ffmpeg` and restart terminal |
 | Transcription crashes on Intel Mac | Not supported — mlx-whisper requires Apple Silicon |
+| "GPU error (signal 6). Try again." | Metal/GPU crash — click the button again. The app survives, only the transcription subprocess died. If it keeps crashing, close and relaunch the app (long uptime can destabilize Metal). |
 | "Error: Could not extract video info" | URL may be unsupported, private, or geo-restricted |
 | First transcription is slow | Normal — downloading Whisper model (~1.5 GB). One-time only. |
 | Window doesn't appear | Check if another instance is running. Kill it: `pkill -f "python.*app.py"` |
