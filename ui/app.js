@@ -95,6 +95,7 @@ document.addEventListener('keydown', function(e) {
   } else if (e.key === 'ArrowRight' && currentScreen === 'library') {
     navigateTo('reader');
   } else if (e.key === 'Escape' && currentScreen !== 'input') {
+    stopPipeline();
     navigateTo('input');
   }
 });
@@ -103,6 +104,15 @@ document.addEventListener('keydown', function(e) {
 // ═══════════════════════════════════════
 //  PIPELINE
 // ═══════════════════════════════════════
+
+function stopPipeline() {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+  stopDots();
+  soundWave.classList.remove('active');
+}
 
 goBtn.addEventListener('click', startPipeline);
 
@@ -143,6 +153,9 @@ function startPipeline() {
         queueStampTypewriter('Error: ' + (result && result.reason || 'Unknown'));
         soundWave.classList.remove('active');
       }
+    }).catch(function() {
+      queueStampTypewriter('Error: bridge failure');
+      soundWave.classList.remove('active');
     });
   } else {
     // Fallback for testing without pywebview
@@ -197,12 +210,17 @@ function pollPipelineStatus() {
             }, 400);
           }, 800);
         }
+      }).catch(function() {
+        queueStampTypewriter('Error: could not fetch result');
       });
     } else if (status.step === 'error') {
       clearInterval(pollInterval);
       pollInterval = null;
       soundWave.classList.remove('active');
     }
+  }).catch(function() {
+    stopPipeline();
+    queueStampTypewriter('Error: bridge failure');
   });
 }
 
@@ -478,6 +496,7 @@ function renderInlineBold(text) {
 
 // Reader actions
 newBtn.addEventListener('click', function() {
+  stopPipeline();
   urlInput.value = '';
   // Restore tagline
   var tagline = document.getElementById('brandTagline');
@@ -525,7 +544,7 @@ exportBtn.addEventListener('click', function() {
       if (result && result.exported) {
         showButtonSuccess(exportBtn, result.filename);
       }
-    });
+    }).catch(function() {});
   }
 });
 
@@ -579,6 +598,9 @@ function loadLibrary() {
   window.pywebview.api.get_library(activeTab).then(function(entries) {
     libraryCache = entries || [];
     renderLibrary(libraryCache);
+  }).catch(function() {
+    libraryCache = [];
+    renderLibrary([]);
   });
 }
 
@@ -645,7 +667,7 @@ function openEntry(entry) {
       dateStamp.textContent = entry.date_str;
       navigateTo('reader');
     }
-  });
+  }).catch(function() {});
 }
 
 
@@ -676,7 +698,7 @@ function openSettings() {
       contextInput.value = s.context || '';
       analysisPrompt.value = s.analysis_prompt || '';
       updateApiKeyStatus(s.api_key);
-    });
+    }).catch(function() {});
   }
 }
 
@@ -700,6 +722,8 @@ function saveAndCloseSettings() {
         apiKeyStatus.className = 'settings-status error';
         return;  // Don't close if error
       }
+      closeSettings();
+    }).catch(function() {
       closeSettings();
     });
   } else {
@@ -736,7 +760,7 @@ function init() {
       if (!hasKey) {
         openSettings();
       }
-    });
+    }).catch(function() {});
   }
 }
 

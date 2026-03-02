@@ -17,6 +17,7 @@ def analyze_text(text: str, prompt: str, api_key: str,
     :return: Analysis text or None on error.
     """
     from openai import OpenAI
+    import httpx
 
     if not api_key:
         log_fn("Missing API key.")
@@ -29,6 +30,7 @@ def analyze_text(text: str, prompt: str, api_key: str,
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
+        timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0),
     )
 
     # Prepend context about source material type

@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Copysight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Sans+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -135,27 +138,27 @@
     <div class="settings-panel" id="settingsPanel">
       <h3>Settings</h3>
 
-      <label>OPENROUTER API KEY</label>
+      <label for="apiKeyInput">OPENROUTER API KEY</label>
       <input type="password" id="apiKeyInput" placeholder="sk-or-..." autocomplete="off">
       <div class="settings-status" id="apiKeyStatus"></div>
 
-      <label>LANGUAGE</label>
+      <label for="langSelect">LANGUAGE</label>
       <select id="langSelect">
         <option value="auto">Auto</option>
         <option value="pl">Polski</option>
         <option value="en">English</option>
       </select>
 
-      <label>MODEL</label>
+      <label for="modelSelect">MODEL</label>
       <select id="modelSelect">
         <option value="turbo">Turbo (rekomendowany)</option>
         <option value="base">Base (lekki)</option>
       </select>
 
-      <label>CONTEXT HINT</label>
+      <label for="contextInput">CONTEXT HINT</label>
       <input type="text" id="contextInput" placeholder="Nazwy, slang, kontekst...">
 
-      <label>ANALYSIS PROMPT</label>
+      <label for="analysisPrompt">ANALYSIS PROMPT</label>
       <textarea id="analysisPrompt" rows="4"
         placeholder="Domyslnie: fiszka 3x3 -- tipy, inspiracje, obserwacje."></textarea>
 

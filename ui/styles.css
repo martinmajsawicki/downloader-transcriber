@@ -21,8 +21,7 @@
 /* ── Reset ── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* ── Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Sans+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* ── Fonts loaded via <link> in index.html ── */
 
 body {
   background: transparent;
@@ -457,6 +456,7 @@ body {
   z-index: 2;
   overflow-y: auto;
   overflow-x: hidden;
+  user-select: text;
 }
 
 /* Scrollbar */
@@ -506,7 +506,6 @@ body {
   text-align: left;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  user-select: text;
 }
 
 .article p:last-child { margin-bottom: 0; }
@@ -814,8 +813,8 @@ body {
 }
 
 .settings-overlay.hidden {
-  display: none;
   opacity: 0;
+  pointer-events: none;
 }
 
 .settings-panel {

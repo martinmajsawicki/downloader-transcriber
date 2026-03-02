@@ -49,28 +49,31 @@ os.makedirs(ANALYSES_DIR, exist_ok=True)
 # ── Default analysis prompt (3-paragraph editorial structure) ──
 
 DEFAULT_ANALYSIS_PROMPT = """\
-Wyciagnij z tej transkrypcji wideo dokladnie 9 insightow w formacie 3x3.
+Napisz fiszke z tej transkrypcji wideo. Trzy sekcje, kazda to jeden spojny akapit editorial.
 
 ## Praktyczne tipy
 
-Podaj 3 konkretne, actionable wskazowki -- co moge zrobic od razu po obejrzeniu.
-Kazdy tip: **tytul** (max 8 slow), potem 1-2 zdania wyjasnienia.
+Jeden akapit: 3 konkretne, actionable wskazowki -- co moge zrobic od razu po obejrzeniu.
+Kazdy tip zacznij od **boldowanego tytulu** (max 8 slow) inline, potem plynnie kontynuuj
+zdaniem wyjasnienia. Caly akapit ma sie czytac jako ciagly tekst, nie lista.
 
 ## Inspiracje
 
-Podaj 3 pomysly, referencje lub sposoby myslenia, ktore warto zapamietac.
-Kazda inspiracja: **tytul**, potem 1-2 zdania kontekstu.
+Jeden akapit: 3 pomysly, referencje lub sposoby myslenia warte zapamietania.
+Kazda inspiracja zaczyna sie od **boldowanego tytulu** inline, potem kontekst.
+Plynny, esejowy styl -- nie lista punktowa.
 
 ## Obserwacje
 
-Podaj 3 krytyczne spostrzezenia -- co naprawde dziala, co jest przesadzone, co pominieto.
-Kazda obserwacja: **tytul**, potem 1-2 zdania analizy.
+Jeden akapit: 3 krytyczne spostrzezenia -- co naprawde dziala, co przesadzone, co pominieto.
+Kazda obserwacja zaczyna sie od **boldowanego tytulu** inline, potem analiza.
+Ton: rzeczowy, bez ogladania sie.
 
 Zasady:
 - Pisz po polsku, zwiezle, bez wstepow i podsumowan.
 - Nie powtarzaj tresci -- wyciagaj esencje.
-- Format: markdown z naglowkami ## i boldowanymi tytulami insightow.
-- Kazdy insight to tytul + body, nic wiecej. Lacznie 9 punktow."""
+- Format: markdown z naglowkami ## i boldowanymi tytulami inline.
+- Kazda sekcja to JEDEN ciagly akapit, nie lista. Lacznie 9 insightow w 3 akapitach."""
 
 
 def _versioned_path(base_path, suffix="", output_dir=None):
@@ -95,6 +98,7 @@ class Api:
     """
 
     def __init__(self):
+        self._lock = threading.Lock()
         self._pipeline_status = {
             "step": "idle",
             "stamps": [],
@@ -113,23 +117,24 @@ class Api:
         """One-click pipeline: Download -> Transcribe -> Analyze.
         Runs in a background thread. Poll get_pipeline_status() for updates.
         """
-        if self._is_processing:
-            return {"started": False, "reason": "Already processing"}
+        with self._lock:
+            if self._is_processing:
+                return {"started": False, "reason": "Already processing"}
 
-        url = (url or "").strip()
-        if not url:
-            return {"started": False, "reason": "No URL"}
+            url = (url or "").strip()
+            if not url:
+                return {"started": False, "reason": "No URL"}
 
-        self._is_processing = True
-        self._pipeline_status = {
-            "step": "connecting",
-            "stamps": [],
-            "progress": 0,
-            "error": None,
-            "done": False,
-        }
-        self._current_transcript = ""
-        self._current_analysis = ""
+            self._is_processing = True
+            self._pipeline_status = {
+                "step": "connecting",
+                "stamps": [],
+                "progress": 0,
+                "error": None,
+                "done": False,
+            }
+            self._current_transcript = ""
+            self._current_analysis = ""
 
         settings = self._load_prefs()
 
@@ -141,8 +146,8 @@ class Api:
                 download_log = []
 
                 def on_progress(pct, msg):
-                    if self._pipeline_status["stamps"]:
-                        if msg:
+                    with self._lock:
+                        if self._pipeline_status["stamps"] and msg:
                             self._pipeline_status["stamps"][-1] = msg
 
                 def on_log(msg):
@@ -156,7 +161,6 @@ class Api:
                     progress_fn=on_progress,
                 )
                 if not mp3:
-                    self._pipeline_status["step"] = "error"
                     # Find most informative log entry
                     detail = "Unknown error"
                     for entry in reversed(download_log):
@@ -165,12 +169,12 @@ class Api:
                             break
                     if detail == "Unknown error" and download_log:
                         detail = download_log[-1]
-                    self._pipeline_status["error"] = detail
+                    self._set_status(step="error", error=detail)
                     self._add_stamp(f"Error: {detail[:80]}")
                     return
                 self._last_mp3 = mp3
                 self._add_stamp("Downloading... done.")
-                self._pipeline_status["step"] = "transcribing"
+                self._set_status(step="transcribing")
 
                 # Step 2: Transcribe
                 self._add_stamp("Transcribing...")
@@ -181,8 +185,9 @@ class Api:
                 model = settings.get("model", "turbo")
 
                 def on_phase(msg):
-                    if self._pipeline_status["stamps"]:
-                        self._pipeline_status["stamps"][-1] = f"Transcribing... {msg}"
+                    with self._lock:
+                        if self._pipeline_status["stamps"]:
+                            self._pipeline_status["stamps"][-1] = f"Transcribing... {msg}"
 
                 text = transcriber.transcribe_audio(
                     mp3,
@@ -192,8 +197,7 @@ class Api:
                     phase_fn=on_phase,
                 )
                 if not text:
-                    self._pipeline_status["step"] = "error"
-                    self._pipeline_status["error"] = "Transcription failed"
+                    self._set_status(step="error", error="Transcription failed")
                     self._add_stamp("Error: Transcription failed")
                     return
                 self._current_transcript = text
@@ -207,7 +211,7 @@ class Api:
                 # Step 3: Analyze (if API key available)
                 api_key = vault.load_key()
                 if api_key:
-                    self._pipeline_status["step"] = "analyzing"
+                    self._set_status(step="analyzing")
                     self._add_stamp("Analyzing...")
                     prompt = settings.get("analysis_prompt", "").strip()
                     if not prompt:
@@ -226,22 +230,24 @@ class Api:
                 else:
                     self._add_stamp("No API key -- transcript only.")
 
-                self._pipeline_status["step"] = "done"
-                self._pipeline_status["done"] = True
+                self._set_status(step="done", done=True)
 
             except Exception as exc:
-                self._pipeline_status["step"] = "error"
-                self._pipeline_status["error"] = str(exc)[:120]
+                self._set_status(step="error", error=str(exc)[:120])
                 self._add_stamp(f"Error: {str(exc)[:80]}")
             finally:
-                self._is_processing = False
+                with self._lock:
+                    self._is_processing = False
 
         threading.Thread(target=work, daemon=True).start()
         return {"started": True}
 
     def get_pipeline_status(self):
         """Returns current pipeline status for JS polling."""
-        return self._pipeline_status
+        with self._lock:
+            status = self._pipeline_status.copy()
+            status["stamps"] = list(status["stamps"])
+            return status
 
     def get_result(self):
         """Returns the current transcript and/or analysis text."""
@@ -251,7 +257,12 @@ class Api:
         }
 
     def _add_stamp(self, text):
-        self._pipeline_status["stamps"].append(text)
+        with self._lock:
+            self._pipeline_status["stamps"].append(text)
+
+    def _set_status(self, **kwargs):
+        with self._lock:
+            self._pipeline_status.update(kwargs)
 
     # ── Settings ──
 
