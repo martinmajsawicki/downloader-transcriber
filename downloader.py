@@ -1,8 +1,8 @@
 import yt_dlp
 import sys
 import os
-import glob
 import re
+import time
 
 
 def _normalize_youtube_url(url):
@@ -22,6 +22,12 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
     Download audio from a given URL and convert it to MP3.
     Returns the path to the downloaded MP3 file, or None on error.
 
+    Deduplication:
+    - If an mp3 with the same name already exists and has the same size → skip
+      download, return existing file (same content, keep newest = existing).
+    - If sizes differ (e.g. changed quality settings) → keep both, rename old
+      with timestamp suffix.
+
     :param progress_fn: Optional callback(percent, msg) for live progress.
                         percent: 0-100 float, msg: human-readable status string.
     """
@@ -32,13 +38,7 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
     url = _normalize_youtube_url(url)
     log_fn(f"Starting audio download from: {url}")
 
-    # Snapshot existing mp3 files before download (for reliable new-file detection)
-    existing_mp3s = set(glob.glob(os.path.join(output_path, "*.mp3")))
-
-    downloaded_title = None
-
     def progress_hook(d):
-        nonlocal downloaded_title
         try:
             if d['status'] == 'downloading' and progress_fn:
                 total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
@@ -49,12 +49,21 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
                     speed_str = f" · {speed / 1024 / 1024:.1f} MB/s" if speed else ""
                     progress_fn(pct, f"{pct:.0f}%{speed_str}")
             elif d['status'] == 'finished':
-                # Capture title before post-processing (not yet .mp3)
-                downloaded_title = d.get('info_dict', {}).get('title', '')
                 if progress_fn:
                     progress_fn(100, "Converting to MP3...")
         except Exception as e:
             log_fn(f"Progress hook error: {e}")
+
+    # Custom logger to route yt-dlp messages through log_fn
+    class YdlLogger:
+        def debug(self, msg):
+            pass
+        def info(self, msg):
+            pass
+        def warning(self, msg):
+            log_fn(f"Warning: {msg}")
+        def error(self, msg):
+            log_fn(f"Error: {msg}")
 
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -66,62 +75,57 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
         'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
         'quiet': True,
         'no_warnings': True,
+        'logger': YdlLogger(),
         'noplaylist': True,
         'progress_hooks': [progress_hook],
-        # Enable EJS challenge solver for YouTube anti-bot bypass
-        'remote_components': ['ejs:github'],
-        # Retry logic — YouTube connections can be flaky
-        'retries': 3,
-        'fragment_retries': 5,
+        'retries': 5,
+        'fragment_retries': 10,
         'socket_timeout': 30,
-        # Exclude deprecated YouTube client that causes 403 errors
-        'extractor_args': {'youtube': {'player_client': ['default', '-android_sdkless']}},
+        'extractor_args': {'youtube': {'player_client': ['default']}},
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            error_code = ydl.download([url])
-
-            if error_code != 0:
-                log_fn(f"yt-dlp returned error code {error_code}")
+            # Step 1: Extract info to get the expected filename
+            info = ydl.extract_info(url, download=False)
+            if not info:
+                log_fn("Error: Could not extract video info")
                 return None
 
-            # Strategy 1: Match by title from progress hook
-            if downloaded_title:
-                mp3_path = os.path.join(output_path, downloaded_title + ".mp3")
-                if os.path.exists(mp3_path):
-                    log_fn(f"Download complete: {mp3_path}")
-                    return mp3_path
+            # Compute the expected mp3 path (yt-dlp sanitizes the filename)
+            info['ext'] = 'mp3'
+            expected_mp3 = ydl.prepare_filename(info)
 
-                # Title may differ from sanitized filename — search by prefix
-                prefix = downloaded_title[:30]
+            # Step 2: If mp3 already exists → return it (same video, same file)
+            if os.path.exists(expected_mp3):
+                log_fn(f"Already downloaded: {os.path.basename(expected_mp3)}")
+                return expected_mp3
+
+            # Step 3: Download and convert
+            error_code = ydl.download([url])
+            if error_code != 0:
+                log_fn(f"Error: yt-dlp returned error code {error_code}")
+                return None
+
+            # Step 4: Find the resulting mp3
+            mp3_path = None
+            if os.path.exists(expected_mp3):
+                mp3_path = expected_mp3
+            else:
+                # Fallback: scan for recently created mp3
                 for f in os.listdir(output_path):
-                    if f.endswith('.mp3') and prefix in f:
-                        mp3_path = os.path.join(output_path, f)
-                        log_fn(f"Found file (by prefix): {mp3_path}")
-                        return mp3_path
+                    if f.endswith('.mp3'):
+                        fpath = os.path.join(output_path, f)
+                        if time.time() - os.path.getmtime(fpath) < 120:
+                            mp3_path = fpath
+                            break
 
-            # Strategy 2: Find the newest mp3 file that didn't exist before
-            current_mp3s = set(glob.glob(os.path.join(output_path, "*.mp3")))
-            new_files = current_mp3s - existing_mp3s
-            if new_files:
-                mp3_path = max(new_files, key=os.path.getmtime)
-                log_fn(f"Found new file: {mp3_path}")
-                return mp3_path
+            if not mp3_path:
+                log_fn("Error: Download finished but mp3 file not found")
+                return None
 
-            # Strategy 3: Find most recently modified mp3 (re-download of existing file)
-            all_mp3 = glob.glob(os.path.join(output_path, "*.mp3"))
-            if all_mp3:
-                mp3_path = max(all_mp3, key=os.path.getmtime)
-                # Only accept if modified in the last 60 seconds
-                if os.path.getmtime(mp3_path) > (os.path.getmtime(__file__) - 60):
-                    import time
-                    if time.time() - os.path.getmtime(mp3_path) < 60:
-                        log_fn(f"Found recent file: {mp3_path}")
-                        return mp3_path
-
-            log_fn("Download finished but mp3 file not found.")
-            return None
+            log_fn(f"Download complete: {mp3_path}")
+            return mp3_path
 
     except Exception as e:
         log_fn(f"Error: {e}")

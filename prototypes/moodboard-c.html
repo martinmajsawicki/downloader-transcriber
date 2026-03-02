@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dTr — Instrument v6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #7A7A85;
+    min-height: 100vh;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 32px 48px;
+    gap: 64px;
+  }
+
+  .page-header {
+    text-align: center; padding-top: 16px;
+    color: #55555E; font-size: 13px; letter-spacing: 0.5px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .page-header h1 {
+    font-size: 14px; font-weight: 600; color: #444; margin-bottom: 4px;
+  }
+
+  .state-label {
+    color: #333;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase;
+    text-align: center; margin-bottom: -48px;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     macOS Window
+     ══════════════════════════════════════════════════════ */
+  .window {
+    width: 1080px; height: 680px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow:
+      0 24px 80px rgba(0,0,0,0.7),
+      0 0 0 0.5px rgba(255,255,255,0.04);
+    display: flex; flex-direction: column;
+    background: #111116;
+  }
+
+  .titlebar {
+    height: 52px; min-height: 52px;
+    background: linear-gradient(180deg, #1C1C24 0%, #17171E 100%);
+    border-bottom: 1px solid #0A0A10;
+    box-shadow: 0 1px 0 #222230;
+    display: flex; align-items: center;
+    position: relative; padding: 0 20px;
+  }
+  .traffic-lights { display: flex; gap: 8px; }
+  .traffic-lights span { width: 12px; height: 12px; border-radius: 50%; }
+  .tl-close { background: #FF5F57; opacity: 0.55; }
+  .tl-minimize { background: #FFBD2E; opacity: 0.55; }
+  .tl-maximize { background: #28C840; opacity: 0.55; }
+
+  .titlebar-title {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    font-size: 13px; font-weight: 600; color: #3A3A44;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1.5px;
+  }
+
+  .body { flex: 1; display: flex; overflow: hidden; }
+
+  /* ══════════════════════════════════════════════════════
+     GROOVE SEPARATOR — machined edge
+     Two-line technique: dark (#0A0A10) + light (#28283A)
+     = impression of a milled groove in metal
+     ══════════════════════════════════════════════════════ */
+  .groove {
+    border: none;
+    height: 2px;
+    background: linear-gradient(180deg, #0A0A10 0%, #0A0A10 50%, #28283A 50%, #28283A 100%);
+    margin: 0;
+  }
+  /* Vertical groove for sidebar/main border */
+  .groove-v {
+    width: 2px; min-width: 2px;
+    background: linear-gradient(90deg, #0A0A10 0%, #0A0A10 50%, #28283A 50%, #28283A 100%);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     SIDEBAR — instrument panel
+     ══════════════════════════════════════════════════════ */
+  .sidebar {
+    width: 280px; min-width: 280px;
+    background: #14141B;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* ── Readout — top gauge panel with subtle gradient bg ── */
+  .readout {
+    padding: 14px 18px;
+    background: linear-gradient(180deg, #111118 0%, #13131B 100%);
+  }
+  .readout-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 0;
+    font-size: 12px;
+  }
+  .readout-label { color: #44444F; font-weight: 500; }
+  .readout-value { color: #22D3EE; font-weight: 600; font-size: 12px; }
+  .readout-value.idle { color: #2A2A36; }
+  .led {
+    width: 7px; height: 7px; border-radius: 50%;
+    display: inline-block; margin-right: 8px;
+    transition: all 0.3s;
+  }
+  .led.on {
+    background: #22D3EE;
+    box-shadow: 0 0 8px rgba(34,211,238,0.5), 0 0 2px rgba(34,211,238,0.8);
+  }
+  .led.blink {
+    background: #22D3EE;
+    animation: led-blink 1s ease-in-out infinite;
+  }
+  .led.off { background: #2A2A36; box-shadow: inset 0 1px 2px rgba(0,0,0,0.4); }
+
+  @keyframes led-blink {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(34,211,238,0.5); }
+    50% { opacity: 0.15; box-shadow: 0 0 2px rgba(34,211,238,0.1); }
+  }
+
+  /* Glow-edge under readout: subtle cyan line that separates readout from controls */
+  .readout-edge {
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(34,211,238,0.15) 20%,
+      rgba(34,211,238,0.25) 50%,
+      rgba(34,211,238,0.15) 80%,
+      transparent 100%
+    );
+  }
+
+  /* Controls */
+  .sidebar-section {
+    padding: 16px 18px;
+  }
+  .sidebar-section + .sidebar-section {
+    /* groove separator between sections */
+  }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; color: #44444F;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+
+  .field { margin-bottom: 10px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    font-size: 11px; font-weight: 500; color: #44444F;
+    margin-bottom: 4px; display: block;
+    text-transform: lowercase; letter-spacing: 0.5px;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    background: #0E0E14;
+    border: 1px solid #282834;
+    border-radius: 5px;
+    color: #A0A0AA;
+    padding: 9px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    /* subtle inset to feel recessed like a real input on hardware */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.25);
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #22D3EE;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.25), 0 0 0 2px rgba(34,211,238,0.12);
+  }
+  input::placeholder, textarea::placeholder { color: #282834; }
+  select {
+    padding: 8px 10px; font-size: 12px; color: #777;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+  }
+  textarea {
+    font-size: 13px; resize: none; min-height: 48px; line-height: 1.5;
+  }
+  .field-row { display: flex; gap: 8px; }
+  .field-row > * { flex: 1; }
+
+  .url-input {
+    font-size: 14px;
+    padding: 10px 12px;
+    border-color: #2E2E3A;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Buttons — hardware feel with subtle bevel ── */
+  .btn-primary {
+    width: 100%; border: none; cursor: pointer;
+    background: linear-gradient(180deg, #2CE0F6 0%, #1AB8D0 100%);
+    color: #0A0A10;
+    padding: 10px 14px; margin-top: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    border-radius: 5px;
+    box-shadow: 0 1px 0 #0E8E9F, inset 0 1px 0 rgba(255,255,255,0.15);
+    transition: all 0.12s;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, #40E8FF 0%, #22D3EE 100%);
+    box-shadow: 0 1px 0 #0E8E9F, inset 0 1px 0 rgba(255,255,255,0.2),
+                0 0 20px rgba(34,211,238,0.2);
+  }
+  .btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 #0E8E9F, inset 0 2px 4px rgba(0,0,0,0.3);
+    background: linear-gradient(180deg, #1AB8D0 0%, #18A5BB 100%);
+  }
+
+  .btn-secondary {
+    width: 100%;
+    border: 1px solid #383844;
+    cursor: pointer;
+    background: linear-gradient(180deg, #1A1A24 0%, #151520 100%);
+    color: #777;
+    padding: 9px 14px; margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    border-radius: 5px;
+    box-shadow: 0 1px 0 #0A0A10;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover {
+    border-color: #22D3EE;
+    color: #22D3EE;
+    box-shadow: 0 1px 0 #0A0A10, 0 0 12px rgba(34,211,238,0.08);
+  }
+
+  /* ── API — deeply recessed ── */
+  .api-section {
+    padding: 10px 18px;
+  }
+  .api-section input {
+    font-size: 11px; padding: 6px 10px;
+    border-color: #1E1E28; color: #3A3A44;
+  }
+  .api-section .field-label { font-size: 10px; color: #2E2E38; }
+
+  /* ══════════════════════════════════════════════════════
+     MAIN — display/screen area
+     ══════════════════════════════════════════════════════ */
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    background: #111116; min-width: 0;
+  }
+
+  /* Toolbar — instrument panel bar with gradient depth */
+  .toolbar {
+    height: 44px; min-height: 44px;
+    background: linear-gradient(180deg, #1A1A22 0%, #15151C 100%);
+    border-bottom: 1px solid #0A0A10;
+    box-shadow: 0 1px 0 #1E1E28;
+    display: flex; align-items: center;
+    padding: 0 18px;
+  }
+  .segmented {
+    display: flex;
+    background: #0E0E14;
+    border: 1px solid #222230;
+    border-radius: 5px;
+    padding: 3px; gap: 2px;
+  }
+  .seg-btn {
+    background: transparent; border: none; cursor: pointer;
+    padding: 5px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 600; color: #44444F;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .seg-btn:hover { color: #777; background: rgba(255,255,255,0.03); }
+  .seg-btn.active {
+    background: linear-gradient(180deg, #2CE0F6 0%, #1BBDD4 100%);
+    color: #0A0A10;
+    box-shadow: 0 1px 4px rgba(34,211,238,0.25);
+  }
+
+  .toolbar-meta {
+    margin-left: auto;
+    display: flex; gap: 10px; align-items: center;
+    font-size: 11px; color: #44444F;
+  }
+  .toolbar-meta .data { color: #22D3EE; font-weight: 600; }
+  .toolbar-meta .sep { color: #28283A; margin: 0 2px; }
+  .toolbar-meta .action-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600; color: #555;
+    cursor: pointer; background: none;
+    border: 1px solid transparent;
+    padding: 3px 8px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+    transition: all 0.15s;
+  }
+  .toolbar-meta .action-btn:hover {
+    background: rgba(34,211,238,0.06);
+    border-color: #28283A;
+    color: #22D3EE;
+  }
+
+  /* Content — display panel with beveled frame */
+  .content-area {
+    flex: 1; overflow-y: auto;
+    padding: 28px 36px;
+    margin: 10px 12px;
+    border-radius: 5px;
+    background: #0D0D12;
+    /* Beveled frame: dark outer edge + lighter inner edge */
+    border: 1px solid #0A0A10;
+    box-shadow:
+      inset 0 0 0 1px #1E1E28,
+      inset 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .content-text {
+    max-width: 660px;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    color: #A8A8B2;
+    line-height: 1.9;
+    font-weight: 400;
+  }
+  .content-text p { margin-bottom: 1.3em; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px; text-align: center;
+    margin: 10px 12px;
+    border-radius: 5px;
+    background: #0D0D12;
+    border: 1px solid #0A0A10;
+    box-shadow:
+      inset 0 0 0 1px #1E1E28,
+      inset 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .empty-icon {
+    width: 48px; height: 48px;
+    border: 1.5px solid #28283A;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .empty-state h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; font-weight: 600;
+    color: #555; margin-bottom: 10px;
+    text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  .empty-state p {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px; color: #3A3A44;
+    line-height: 1.7; max-width: 320px;
+  }
+
+  /* ── Processing bar — glowing edge ── */
+  .processing-bar {
+    height: 2px;
+    background: #0A0A10;
+    position: relative; overflow: hidden;
+    box-shadow: 0 1px 0 #1A1A24;
+  }
+  .processing-bar .fill {
+    height: 100%; background: #22D3EE;
+    width: 65%; transition: width 0.5s ease;
+    position: relative;
+    box-shadow: 0 0 8px rgba(34,211,238,0.4);
+  }
+  .processing-bar .fill::after {
+    content: '';
+    position: absolute; right: 0; top: -2px;
+    width: 40px; height: 6px;
+    background: radial-gradient(ellipse, rgba(34,211,238,0.6), transparent);
+    animation: glow-move 1.2s ease-in-out infinite;
+  }
+  @keyframes glow-move {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Warning banner ── */
+  .warning-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 18px;
+    font-size: 12px; font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+    border-bottom: 1px solid #0A0A10;
+    box-shadow: 0 1px 0 #1E1E28;
+  }
+  .warning-banner.cyan {
+    background: linear-gradient(180deg, rgba(34,211,238,0.06) 0%, rgba(34,211,238,0.02) 100%);
+    color: #22D3EE;
+  }
+  .warning-banner .dismiss {
+    margin-left: auto; background: none;
+    border: 1px solid rgba(34,211,238,0.25);
+    color: #22D3EE; padding: 3px 10px;
+    border-radius: 4px; font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .warning-banner .dismiss:hover {
+    background: rgba(34,211,238,0.08);
+    border-color: #22D3EE;
+  }
+
+  /* ── Locked ── */
+  .sidebar-section.locked {
+    opacity: 0.2; pointer-events: none;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #28283A; border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb:hover { background: #383844; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>dTr — Instrument v6</h1>
+  idle → processing → ready
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 1: IDLE
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">idle — awaiting input</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="readout">
+        <div class="readout-row">
+          <span class="readout-label"><span class="led off"></span>download</span>
+          <span class="readout-value idle">—</span>
+        </div>
+        <div class="readout-row">
+          <span class="readout-label"><span class="led off"></span>transcribe</span>
+          <span class="readout-value idle">—</span>
+        </div>
+        <div class="readout-row">
+          <span class="readout-label"><span class="led off"></span>analysis</span>
+          <span class="readout-value idle">—</span>
+        </div>
+      </div>
+      <div class="readout-edge"></div>
+      <hr class="groove">
+
+      <div class="sidebar-section">
+        <div class="section-label">source</div>
+        <div class="field">
+          <input type="text" class="url-input" placeholder="youtube url">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">lang</label>
+            <select><option>auto</option><option>pl</option><option>en</option></select>
+          </div>
+          <div>
+            <label class="field-label">model</label>
+            <select><option>turbo</option><option>base</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" placeholder="context hints (optional)">
+        </div>
+        <button class="btn-primary">Transcribe</button>
+      </div>
+
+      <hr class="groove">
+
+      <div class="sidebar-section locked">
+        <div class="section-label">ai prompt</div>
+        <div class="field">
+          <textarea placeholder="prompt for analysis…"></textarea>
+        </div>
+        <button class="btn-secondary">Analyze</button>
+      </div>
+
+      <hr class="groove" style="margin-top:auto;">
+
+      <div class="api-section">
+        <label class="field-label">api key</label>
+        <input type="password" placeholder="sk-or-v1-…">
+      </div>
+    </div>
+
+    <div class="groove-v"></div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transcript</button>
+          <button class="seg-btn">Analysis</button>
+        </div>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">▸</div>
+        <h3>Ready</h3>
+        <p>Paste a YouTube URL and hit transcribe. Local processing, no data leaves this machine.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 2: PROCESSING
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">transcribing</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr — transcribing…</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="readout">
+        <div class="readout-row">
+          <span class="readout-label"><span class="led on"></span>download</span>
+          <span class="readout-value">42s OK</span>
+        </div>
+        <div class="readout-row">
+          <span class="readout-label"><span class="led blink"></span>transcribe</span>
+          <span class="readout-value">0:48 turbo</span>
+        </div>
+        <div class="readout-row">
+          <span class="readout-label"><span class="led off"></span>analysis</span>
+          <span class="readout-value idle">standby</span>
+        </div>
+      </div>
+      <div class="readout-edge"></div>
+      <hr class="groove">
+
+      <div class="sidebar-section">
+        <div class="section-label">source</div>
+        <div class="field">
+          <input type="text" class="url-input" value="youtube.com/watch?v=BpibZSMGtdY" style="color:#666;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">lang</label>
+            <select><option>auto</option></select>
+          </div>
+          <div>
+            <label class="field-label">model</label>
+            <select><option>turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#555;">
+        </div>
+        <button class="btn-primary" style="opacity:0.35; pointer-events:none;">Transcribing…</button>
+      </div>
+
+      <hr class="groove">
+
+      <div class="sidebar-section locked">
+        <div class="section-label">ai prompt</div>
+        <div class="field">
+          <textarea placeholder="prompt for analysis…"></textarea>
+        </div>
+        <button class="btn-secondary">Analyze</button>
+      </div>
+
+      <hr class="groove" style="margin-top:auto;">
+
+      <div class="api-section">
+        <label class="field-label">api key</label>
+        <input type="password" value="sk-or-v1-••••••" style="color:#2A2A34;">
+      </div>
+    </div>
+
+    <div class="groove-v"></div>
+
+    <div class="main">
+      <div class="processing-bar"><div class="fill" style="width:65%;"></div></div>
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transcript</button>
+          <button class="seg-btn">Analysis</button>
+        </div>
+        <div class="toolbar-meta">
+          <span style="color:#22D3EE; font-weight:600;">transcribing 65%</span>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="content-text" style="color:#555;">
+          <p>Dzisiaj chciałbym porozmawiać o tym, jak duże modele językowe zmieniają sposób, w jaki pracujemy z kodem. Nie chodzi mi o generowanie kodu — to jest trywialna część. Chodzi o to, jak zmienia się proces myślenia o architekturze, o projektowaniu systemów…</p>
+          <p style="color:#333;">▍</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 3: READY
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">ready — transcript done, analysis unlocked</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="readout">
+        <div class="readout-row">
+          <span class="readout-label"><span class="led on"></span>download</span>
+          <span class="readout-value">42s OK</span>
+        </div>
+        <div class="readout-row">
+          <span class="readout-label"><span class="led on"></span>transcribe</span>
+          <span class="readout-value">18s turbo</span>
+        </div>
+        <div class="readout-row">
+          <span class="readout-label"><span class="led off"></span>analysis</span>
+          <span class="readout-value idle">standby</span>
+        </div>
+      </div>
+      <div class="readout-edge"></div>
+      <hr class="groove">
+
+      <div class="sidebar-section">
+        <div class="section-label">source</div>
+        <div class="field">
+          <input type="text" class="url-input" value="youtube.com/watch?v=BpibZSMGtdY" style="color:#666;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">lang</label>
+            <select><option>auto → pl</option></select>
+          </div>
+          <div>
+            <label class="field-label">model</label>
+            <select><option>turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#555;">
+        </div>
+        <button class="btn-primary">Transcribe</button>
+      </div>
+
+      <hr class="groove">
+
+      <!-- Unlocked -->
+      <div class="sidebar-section">
+        <div class="section-label">ai prompt</div>
+        <div class="field">
+          <textarea placeholder="default: evaluate, insights…&#10;custom overrides default."></textarea>
+        </div>
+        <button class="btn-secondary">Analyze</button>
+      </div>
+
+      <hr class="groove" style="margin-top:auto;">
+
+      <div class="api-section">
+        <label class="field-label">api key</label>
+        <input type="password" value="sk-or-v1-••••••" style="color:#2A2A34;">
+      </div>
+    </div>
+
+    <div class="groove-v"></div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transcript</button>
+          <button class="seg-btn">Analysis</button>
+        </div>
+        <div class="toolbar-meta">
+          <span class="data">14230</span> chars
+          <span class="sep">│</span>
+          <span class="data">pl</span> lang
+          <span class="sep">│</span>
+          <button class="action-btn">copy</button>
+          <button class="action-btn">export</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="content-text">
+          <p>Dzisiaj chciałbym porozmawiać o tym, jak duże modele językowe zmieniają sposób, w jaki pracujemy z kodem. Nie chodzi mi o generowanie kodu — to jest trywialna część. Chodzi o to, jak zmienia się proces myślenia o architekturze, o projektowaniu systemów, kiedy masz partnera, który potrafi przetworzyć kontekst na poziomie, którego wcześniej nie mieliśmy.</p>
+          <p>Zacznijmy od konkretnego przykładu. W zeszłym tygodniu pracowałem nad systemem przetwarzania danych, pipeline ETL. Tradycyjnie — siadasz, rysujesz diagram, myślisz o edge case'ach, piszesz testy. Teraz proces wygląda inaczej. Opisujesz problem, dostajesz propozycję architektury, iterujesz. Ale tu jest pułapka, o której mało kto mówi.</p>
+          <p>Pułapka polega na tym, że model daje ci rozwiązanie, które wygląda kompletnie, jest dobrze napisane, ma testy — ale jest oparte na założeniach, których nigdy nie zweryfikowałeś. I to jest moment, w którym krytyczne myślenie jest ważniejsze niż kiedykolwiek. Bo wcześniej, kiedy sam pisałeś kod od zera, każde założenie musiałeś jawnie podjąć.</p>
+          <p>To prowadzi mnie do głównej tezy tego materiału: kompetencja przyszłości to nie prompt engineering, nie znajomość API modeli — to umiejętność weryfikacji. Umiejętność patrzenia na output i pytania: „dlaczego tak, a nie inaczej?", „jakie są alternatywy?", „co ten kod zakłada?"</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     BONUS: Warning banners
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">warning banners</div>
+<div class="window" style="height:130px;">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr</span>
+  </div>
+  <div class="warning-banner cyan">
+    <span>⚠</span>
+    <span>deno not found — youtube extraction may fail</span>
+    <button class="dismiss">fix</button>
+  </div>
+  <div class="warning-banner cyan" style="background:linear-gradient(180deg, rgba(34,211,238,0.03) 0%, rgba(34,211,238,0.01) 100%);">
+    <span>↑</span>
+    <span>yt-dlp 2025.01 → 2025.06 available</span>
+    <button class="dismiss">update</button>
+  </div>
+</div>
+
+</body>
+</html>

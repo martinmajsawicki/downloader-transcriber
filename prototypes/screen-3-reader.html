@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Copysight — Screen 3: The Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --base:       #F7E9C1;
+    --red:        #D1344B;
+    --ink:        #2B2B2B;
+    --ink-light:  #4A4A4A;
+    --gear-color: #C4AA78;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #D5CEC4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+
+  /* ===== WINDOW =====
+     Same chrome as Screen 1 but calmer paper surface.
+     Fewer warm spots, gentler vignette, minimal texture.
+     The reading room is quiet. */
+
+  .window {
+    width: 680px;
+    border-radius: 10px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.5) inset,
+      0 30px 80px rgba(0,0,0,0.28),
+      0 4px 12px rgba(0,0,0,0.18),
+      inset 0 0 50px rgba(140,115,65,0.04);
+    overflow: hidden;
+    position: relative;
+
+    /* Smooth manila — much calmer than Screen 1's layered texture */
+    background:
+      /* Very gentle edge vignette */
+      radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(150,125,70,0.05) 100%),
+      /* Single subtle warm spot — barely there */
+      radial-gradient(ellipse at 35% 40%, rgba(250,225,165,0.10), transparent 55%),
+      /* Flat, even base — the paper is smooth and well-pressed */
+      linear-gradient(178deg, #F9EECC 0%, var(--base) 40%, #F6E5B8 100%);
+  }
+
+  /* Very fine grain — almost imperceptible. The Reader is calm. */
+  .window::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    background-size: 200px;
+    pointer-events: none;
+    border-radius: 10px;
+    z-index: 3;
+    mix-blend-mode: multiply;
+  }
+
+  /* No coarse fiber layer on Screen 3 — paper is clean and pressed */
+
+  /* ===== TITLEBAR ===== */
+
+  .titlebar {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 100%);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    z-index: 5;
+  }
+
+  .traffic-lights { display: flex; gap: 8px; }
+
+  .traffic-light {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(0,0,0,0.15);
+  }
+  .tl-close { background: linear-gradient(180deg, #FF6058, #E14640); }
+  .tl-min   { background: linear-gradient(180deg, #FFC02E, #DFA524); }
+  .tl-max   { background: linear-gradient(180deg, #2ACB42, #1FA634); }
+
+  .titlebar-text {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink); opacity: 0.4;
+  }
+
+  /* ===== WATERCOLOR GEARS =====
+     Much fainter than Screen 1 — barely visible.
+     Only upper-right cluster. The text dominates. */
+
+  .watercolor-gears {
+    position: absolute;
+    top: 44px;
+    left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .watercolor-gears svg {
+    position: absolute;
+    fill: var(--gear-color);
+    mix-blend-mode: multiply;
+    opacity: 0;
+  }
+
+  .wg-r1 {
+    width: 150px; height: 150px;
+    top: 8px; right: 24px;
+    opacity: 0.07 !important;
+    filter: blur(3px);
+  }
+
+  .wg-r2 {
+    width: 70px; height: 70px;
+    top: 10px; right: 4px;
+    opacity: 0.05 !important;
+    filter: blur(2.5px);
+  }
+
+  /* ===== CONTENT =====
+     Fixed height matching Screen 1 (min-height: 340px).
+     Article scrolls inside. The window stays compact. */
+
+  .content {
+    padding: 20px 50px 0;
+    position: relative;
+    z-index: 2;
+    height: 340px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Subtle scrollbar — doesn't compete with content */
+  .content::-webkit-scrollbar {
+    width: 6px;
+  }
+  .content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .content::-webkit-scrollbar-thumb {
+    background: rgba(43,43,43,0.12);
+    border-radius: 3px;
+  }
+  .content::-webkit-scrollbar-thumb:hover {
+    background: rgba(43,43,43,0.22);
+  }
+
+  /* ===== DATE STAMP =====
+     Small red stamp in upper-right corner.
+     The only skeuomorphic accent on Screen 3. */
+
+  .date-stamp {
+    display: block;
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    color: var(--red);
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin-bottom: 12px;
+    z-index: 4;
+  }
+
+  .date-stamp span {
+    display: inline-block;
+    transform: rotate(-2deg);
+    /* Ink-bleed effect */
+    text-shadow:
+      0 0 1px rgba(209,52,75,0.25),
+      0.3px 0.2px 0 rgba(209,52,75,0.08);
+    /* Stamp border */
+    border: 1.5px solid var(--red);
+    border-radius: 2px;
+    padding: 3px 7px 2px;
+  }
+
+  /* ===== ARTICLE =====
+     Editorial reading experience — serif, wide leading, centered column. */
+
+  .article {
+    max-width: 540px;
+    margin: 0 auto;
+    padding-bottom: 40px;
+  }
+
+  .article p {
+    font-family: Georgia, 'Charter', 'Palatino Linotype', serif;
+    font-size: 17px;
+    line-height: 1.74;
+    color: var(--ink);
+    margin-bottom: 26px;
+    text-align: left;
+    /* Subtle text rendering for editorial feel */
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .article p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Section headers — bold, inline, same size as body.
+     They flow into the paragraph, not separate. */
+  .article p strong {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  /* ===== NAV HINT =====
+     Subtle chevron at left edge — hints at Library (Screen 4).
+     Barely visible, appears on hover. */
+
+  .nav-hint {
+    position: absolute;
+    left: 0;
+    top: 44px; /* below titlebar */
+    bottom: 0;
+    width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 6;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .window:hover .nav-hint {
+    opacity: 1;
+  }
+
+  .nav-hint-arrow {
+    font-size: 18px;
+    color: var(--ink);
+    opacity: 0.14;
+    transition: opacity 0.15s ease;
+    user-select: none;
+    font-family: -apple-system, sans-serif;
+  }
+
+  .nav-hint:hover .nav-hint-arrow {
+    opacity: 0.32;
+  }
+
+  .nav-hint-label {
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--ink);
+    opacity: 0;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+  }
+
+  .nav-hint:hover .nav-hint-label {
+    opacity: 0.3;
+  }
+
+  /* ===== SIDEBAR VARIANT =====
+     When opening a fiszka FROM the Library, the Reader shows
+     with sidebar tabs visible. No gears in this mode.
+     Toggle: add .with-sidebar to .window */
+
+  .sidebar {
+    display: none;
+    flex-direction: column;
+    padding: 12px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    width: 36px;
+  }
+
+  .window.with-sidebar .sidebar {
+    display: flex;
+  }
+
+  /* Hide gears + nav hint when sidebar is visible */
+  .window.with-sidebar .watercolor-gears,
+  .window.with-sidebar .nav-hint {
+    display: none;
+  }
+
+  /* Adjust content layout when sidebar is present */
+  .window.with-sidebar .main-layout {
+    display: flex;
+    height: 340px;
+  }
+
+  .window.with-sidebar .content {
+    flex: 1;
+    padding-left: 20px;
+  }
+
+  .sidebar .tab {
+    width: 32px;
+    border-radius: 0 6px 6px 0;
+    padding: 14px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .sidebar .tab span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.92);
+    user-select: none;
+  }
+
+  .sidebar .tab:hover { opacity: 0.85; }
+
+  .tab-fresh   { background: var(--ink); }
+  .tab-recent  { background: #4A89C5; }
+  .tab-settled { background: var(--red); }
+  .tab-gold    { background: #E5B742; }
+  .tab-gold span { color: rgba(43,43,43,0.85); }
+
+  /* ===== RESPONSIVE ===== */
+
+  @media (max-width: 720px) {
+    .window { width: 95vw; min-width: 360px; }
+    .content { padding: 36px 28px 44px; }
+    .article p { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <div class="traffic-light tl-close"></div>
+      <div class="traffic-light tl-min"></div>
+      <div class="traffic-light tl-max"></div>
+    </div>
+    <span class="titlebar-text">Copysight</span>
+  </div>
+
+  <!-- Watercolor gear stains — much fainter than Screen 1 -->
+  <div class="watercolor-gears">
+    <svg class="wg-r1" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <path d="M66,18 L66,8 L76,8 L76,18 C81,18.6 85.5,20.5 89.5,23 L96,16 L104,24 L97,31 C99.5,35 101.3,39.5 102,44 L112,44 L112,54 L102,54 C101.3,58.5 99.5,63 97,67 L104,74 L96,82 L89.5,75 C85.5,77.5 81,79.4 76,80 L76,90 L66,90 L66,80 C61,79.4 56.5,77.5 52.5,75 L46,82 L38,74 L45,67 C42.5,63 40.7,58.5 40,54 L30,54 L30,44 L40,44 C40.7,39.5 42.5,35 45,31 L38,24 L46,16 L52.5,23 C56.5,20.5 61,18.6 66,18 Z M71,34 A17,17 0 1,0 71,66 A17,17 0 1,0 71,34 Z"/>
+    </svg>
+    <svg class="wg-r2" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28,8 L28,3 L34,3 L34,8 C36.5,8.3 38.8,9.2 40.7,10.5 L44,7 L49,12 L45.7,15.3 C47,17.2 47.8,19.5 48.1,22 L53,22 L53,28 L48.1,28 C47.8,30.5 47,32.8 45.7,34.7 L49,38 L44,43 L40.7,39.5 C38.8,40.8 36.5,41.7 34,42 L34,47 L28,47 L28,42 C25.5,41.7 23.2,40.8 21.3,39.5 L18,43 L13,38 L16.3,34.7 C15,32.8 14.2,30.5 13.9,28 L9,28 L9,22 L13.9,22 C14.2,19.5 15,17.2 16.3,15.3 L13,12 L18,7 L21.3,10.5 C23.2,9.2 25.5,8.3 28,8 Z M31,18 A8,8 0 1,0 31,34 A8,8 0 1,0 31,18 Z"/>
+    </svg>
+  </div>
+
+  <!-- Navigation hint: swipe/arrow left → Library -->
+  <div class="nav-hint">
+    <span class="nav-hint-arrow">&#x2039;</span>
+    <span class="nav-hint-label">Library</span>
+  </div>
+
+  <!-- Sidebar: hidden by default, visible with .with-sidebar on .window -->
+  <div class="main-layout">
+    <nav class="sidebar">
+      <div class="tab tab-fresh"><span>Fresh</span></div>
+      <div class="tab tab-recent"><span>Recent</span></div>
+      <div class="tab tab-settled"><span>Settled</span></div>
+      <div class="tab tab-gold"><span>Gold</span></div>
+    </nav>
+
+    <div class="content">
+    <!-- Date stamp — the only analog accent -->
+    <div class="date-stamp"><span>01 Mar 2026</span></div>
+
+    <article class="article">
+      <p><strong>Practical Insights</strong> The most immediately useful takeaway is the shift toward local-first processing in consumer applications. Developers building media tools should consider on-device transcription as a default rather than a premium tier. The latency gains alone justify the architectural investment, and users increasingly expect their data to stay on their machines. For journalists specifically, the ability to get structured notes within minutes of receiving source material changes the preparation workflow entirely.</p>
+
+      <p><strong>Observant Analysis</strong> What makes this discussion particularly revealing is the implicit tension between convenience and control. The speakers consistently frame cloud-based tools as a compromise rather than a solution, which marks a notable departure from the prevailing industry narrative. There is also a recurring pattern of referencing editorial workflows from print journalism as models for digital tool design. This suggests the most effective knowledge tools may draw from pre-digital information practices rather than attempting to reinvent them from first principles.</p>
+
+      <p><strong>Predictions</strong> Based on the trajectory outlined here, the next eighteen months will likely see a wave of desktop applications that combine local AI inference with traditional editorial structures. The emphasis on structured output over raw transcription points toward a broader trend: users want interpretation, not just data. Tools that can deliver a curated briefing in the time it takes to make coffee will command premium positioning. The filing cabinet metaphor, used repeatedly in this conversation, may prove prescient as a design pattern for personal knowledge management.</p>
+    </article>
+  </div>
+  </div><!-- /main-layout -->
+</div>
+
+</body>
+</html>

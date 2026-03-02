@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clipsight — Łupek v7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Space+Grotesk:wght@400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #E8E6E1;
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 32px 48px;
+    gap: 64px;
+  }
+
+  .page-header {
+    text-align: center; padding-top: 16px;
+    color: #8A8A94; font-size: 13px;
+  }
+  .page-header h1 {
+    font-size: 14px; font-weight: 600; color: #6E6E7A; margin-bottom: 4px;
+  }
+  .state-label {
+    color: #7A7A85;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase;
+    text-align: center; margin-bottom: -48px;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     WINDOW
+     ══════════════════════════════════════════════════════ */
+  .window {
+    width: 1080px; height: 680px;
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.08);
+    display: flex; flex-direction: column;
+    background: #7A7A85;
+  }
+
+  .titlebar {
+    height: 52px; min-height: 52px;
+    background: linear-gradient(180deg, #636370 0%, #5E5E6A 100%);
+    border-bottom: 1px solid #50505C;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.06);
+    display: flex; align-items: center;
+    position: relative; padding: 0 20px;
+  }
+  .traffic-lights { display: flex; gap: 8px; }
+  .traffic-lights span { width: 12px; height: 12px; border-radius: 50%; }
+  .tl-close { background: #FF5F57; }
+  .tl-minimize { background: #FFBD2E; }
+  .tl-maximize { background: #28C840; }
+  .titlebar-title {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    font-size: 13px; font-weight: 600; color: #B0B0BA;
+  }
+
+  .body { flex: 1; display: flex; overflow: hidden; }
+
+  /* ══════════════════════════════════════════════════════
+     SIDEBAR
+     ══════════════════════════════════════════════════════ */
+  .sidebar {
+    width: 280px; min-width: 280px;
+    background: #6E6E7A;
+    border-right: 1px solid #60606C;
+    box-shadow: 1px 0 0 rgba(255,255,255,0.05);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .sidebar-section { padding: 20px; }
+  .sidebar-section + .sidebar-section {
+    border-top: 1px solid #58586A;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  /* Section labels */
+  .section-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px; font-weight: 700;
+    color: #22D3EE;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label .num {
+    font-family: 'JetBrains Mono', monospace;
+    color: #8A8A96;
+  }
+
+  /* Fields */
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    font-size: 12px; font-weight: 600; color: #B0B0BA;
+    margin-bottom: 5px; display: block;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    background: #4A4A56;
+    border: 1px solid #5E5E6A;
+    border-radius: 7px;
+    color: #EEEEF2;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #22D3EE;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.15), 0 0 0 3px rgba(34,211,238,0.15);
+  }
+  input::placeholder, textarea::placeholder { color: #8A8A96; }
+  select { padding: 9px 10px; font-size: 13px; color: #C0C0CA; }
+  textarea { font-size: 14px; resize: none; min-height: 56px; line-height: 1.5; }
+  .field-row { display: flex; gap: 8px; }
+  .field-row > * { flex: 1; }
+
+  .url-input { font-size: 14px; padding: 11px 12px; border-color: #666674; }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    width: 100%; border: none; cursor: pointer;
+    background: linear-gradient(180deg, #1E1E26 0%, #141418 100%);
+    color: #22D3EE;
+    padding: 11px 16px; margin-top: 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px; font-weight: 700;
+    border-radius: 7px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: all 0.15s;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, #252530 0%, #1A1A20 100%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25), 0 0 20px rgba(34,211,238,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .btn-secondary {
+    width: 100%;
+    border: 1.5px solid #55555E;
+    cursor: pointer; background: rgba(0,0,0,0.1);
+    color: #D0D0D8;
+    padding: 10px 16px; margin-top: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600;
+    border-radius: 7px;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover {
+    border-color: #22D3EE; color: #22D3EE;
+    background: rgba(34,211,238,0.05);
+  }
+
+  /* ── API ── */
+  .api-section {
+    padding: 12px 20px;
+    border-top: 1px solid #58586A;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .api-section input {
+    font-size: 12px; padding: 7px 10px;
+    background: #4A4A56; border-color: #55555E;
+    color: #8A8A96;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .api-section .field-label { font-size: 11px; color: #8A8A96; }
+
+  /* ── Status ── */
+  .status-area {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid #58586A;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+    background: rgba(0,0,0,0.08);
+  }
+  .status-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; font-size: 13px;
+    color: #8A8A96;
+    transition: color 0.3s;
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    flex-shrink: 0; transition: all 0.3s;
+  }
+  .status-item.done .status-dot {
+    background: #22D3EE;
+    box-shadow: 0 0 8px rgba(34,211,238,0.45);
+  }
+  .status-item.done { color: #D0D0D8; }
+  .status-item.active .status-dot {
+    background: #22D3EE;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .status-item.active { color: #22D3EE; font-weight: 500; }
+  .status-item.pending .status-dot {
+    border: 1.5px solid #7A7A88; background: transparent;
+  }
+  .status-item .meta {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #7A7A88;
+  }
+  .status-item.done .meta { color: #A0A0AC; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(34,211,238,0.45); }
+    50% { opacity: 0.3; box-shadow: 0 0 2px rgba(34,211,238,0.1); }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     MAIN
+     ══════════════════════════════════════════════════════ */
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    background: #7A7A85; min-width: 0;
+  }
+
+  .toolbar {
+    height: 44px; min-height: 44px;
+    background: #6E6E7A;
+    border-bottom: 1px solid #60606C;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05);
+    display: flex; align-items: center;
+    padding: 0 20px;
+  }
+  .segmented {
+    display: flex;
+    background: #4A4A56;
+    border-radius: 7px;
+    padding: 3px; gap: 2px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .seg-btn {
+    background: transparent; border: none; cursor: pointer;
+    padding: 5px 18px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 500; color: #A0A0AC;
+    border-radius: 5px;
+    transition: all 0.15s;
+  }
+  .seg-btn:hover { color: #D0D0D8; }
+  .seg-btn.active {
+    background: linear-gradient(180deg, #1E1E26 0%, #141418 100%);
+    color: #22D3EE; font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .seg-btn.disabled {
+    color: #66666E; cursor: default;
+    pointer-events: none;
+  }
+
+  .toolbar-meta {
+    margin-left: auto;
+    display: flex; gap: 14px; align-items: center;
+  }
+  .toolbar-meta .info {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #9A9AA5;
+  }
+  .toolbar-meta .action-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600; color: #B0B0BA;
+    cursor: pointer; background: none; border: none;
+    padding: 4px 10px; border-radius: 5px;
+    transition: all 0.15s;
+  }
+  .toolbar-meta .action-btn:hover {
+    background: rgba(0,0,0,0.12); color: #22D3EE;
+  }
+
+  /* ── Content area ── */
+  .content-area {
+    flex: 1; overflow-y: auto;
+    padding: 32px 44px;
+  }
+
+  /* Transcript — serif, Kindle/Readwise feel */
+  .content-text {
+    max-width: 600px;
+    font-family: 'Lora', 'Charter', 'Georgia', serif;
+    font-size: 18px;
+    color: #EEEEF2;
+    line-height: 1.58;
+    font-weight: 400;
+    letter-spacing: -0.003em;
+  }
+  .content-text p {
+    margin-bottom: 1.35em;
+    text-align: left;
+    hanging-punctuation: first;
+  }
+
+  /* ── Content: analysis as note — same reading experience as transcript ── */
+  .content-analysis {
+    max-width: 600px;
+    padding-bottom: 20px;
+  }
+  .note-section {
+    margin-bottom: 2.2em;
+  }
+  .note-section:last-child { margin-bottom: 0; }
+  .note-section-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 700;
+    color: #8A8A96;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 1.2em;
+    padding-bottom: 0.6em;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .note-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #22D3EE;
+  }
+  .note-insight {
+    margin-bottom: 1.4em;
+  }
+  .note-insight:last-child { margin-bottom: 0; }
+  .note-insight-title {
+    font-family: 'Lora', 'Charter', 'Georgia', serif;
+    font-size: 18px; font-weight: 600;
+    color: #EEEEF2;
+    line-height: 1.4;
+    margin-bottom: 0.3em;
+  }
+  .note-insight-body {
+    font-family: 'Lora', 'Charter', 'Georgia', serif;
+    font-size: 18px; font-weight: 400;
+    color: #C0C0CA;
+    line-height: 1.58;
+    letter-spacing: -0.003em;
+  }
+  .note-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    margin: 2em 0;
+  }
+
+  /* ── Skeleton note (analysis loading) ── */
+  .skel-block {
+    margin-bottom: 2em;
+  }
+  .skel-block:last-child { margin-bottom: 0; }
+  .skel-heading {
+    width: 35%; height: 10px; border-radius: 4px;
+    background: #6A6A75;
+    margin-bottom: 1.4em;
+    position: relative; overflow: hidden;
+  }
+  .skel-heading::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    animation: shimmer 2.2s ease-in-out infinite;
+  }
+  .skel-entry { margin-bottom: 1.4em; }
+  .skel-entry:last-child { margin-bottom: 0; }
+  .skel-entry-title {
+    width: 55%; height: 14px; border-radius: 4px;
+    background: #6A6A75;
+    margin-bottom: 0.6em;
+    position: relative; overflow: hidden;
+  }
+  .skel-entry-title::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    animation: shimmer 2.2s ease-in-out infinite;
+  }
+  .skel-text-line {
+    height: 12px; border-radius: 4px;
+    background: #6E6E78;
+    margin-bottom: 0.5em;
+    position: relative; overflow: hidden;
+  }
+  .skel-text-line::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    animation: shimmer 2.2s ease-in-out infinite;
+  }
+  .skel-text-line:last-child { width: 70%; margin-bottom: 0; }
+  .skel-entry-title:nth-child(1) { width: 50%; }
+  .skel-entry:nth-child(2) .skel-entry-title { width: 60%; }
+  .skel-entry:nth-child(3) .skel-entry-title { width: 45%; }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  /* ── Synthesis forming — unified animation on the note ── */
+  .content-analysis.synthesis-forming {
+    position: relative;
+    overflow: hidden;
+  }
+  .content-analysis.synthesis-forming::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%;
+    width: 40%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02), transparent);
+    animation: synthesis-sweep 3.5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @keyframes synthesis-sweep {
+    0% { left: -60%; }
+    100% { left: 120%; }
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px; text-align: center;
+  }
+  .empty-icon {
+    width: 56px; height: 56px;
+    border: 1.5px solid rgba(34,211,238,0.15);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+    color: #22D3EE; font-size: 24px;
+    opacity: 0.5;
+  }
+  .empty-state h3 {
+    font-size: 17px; font-weight: 600;
+    color: #D0D0D8; margin-bottom: 8px;
+  }
+  .empty-state p {
+    font-size: 14px; color: #9A9AA5;
+    line-height: 1.6; max-width: 320px;
+  }
+
+  /* ── Processing bar ── */
+  .processing-bar {
+    height: 2px; background: #58586A;
+    position: relative; overflow: hidden;
+  }
+  .processing-bar .fill {
+    height: 100%; background: #22D3EE;
+    width: 65%; position: relative;
+    box-shadow: 0 0 10px rgba(34,211,238,0.4);
+  }
+  .processing-bar .fill::after {
+    content: '';
+    position: absolute; right: 0; top: -3px;
+    width: 40px; height: 8px;
+    background: radial-gradient(ellipse, rgba(34,211,238,0.5), transparent);
+    animation: glow-move 1.2s ease-in-out infinite;
+  }
+  @keyframes glow-move {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Warning banner ── */
+  .warning-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 20px; font-size: 13px; font-weight: 500;
+    border-bottom: 1px solid #58586A;
+  }
+  .warning-banner.neon {
+    background: rgba(34,211,238,0.06); color: #22D3EE;
+  }
+  .warning-banner .dismiss {
+    margin-left: auto;
+    background: linear-gradient(180deg, #1E1E26 0%, #141418 100%);
+    border: none; color: #22D3EE;
+    padding: 4px 12px; border-radius: 5px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  /* ── Locked ── */
+  .sidebar-section.locked { opacity: 0.3; pointer-events: none; }
+
+  /* ══════════════════════════════════════════════════════
+     LIBRARY SIDEBAR — source list + search
+     ══════════════════════════════════════════════════════ */
+  .sidebar-mode-toggle {
+    padding: 14px 20px 10px;
+    display: flex; gap: 0;
+    background: #6E6E7A;
+  }
+  .mode-btn {
+    flex: 1;
+    background: transparent; border: none; cursor: pointer;
+    padding: 7px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px; font-weight: 600; color: #8A8A96;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .mode-btn:hover { color: #B0B0BA; }
+  .mode-btn.active {
+    color: #22D3EE;
+    border-bottom-color: #22D3EE;
+  }
+
+  /* Search field in archive mode */
+  .archive-search {
+    padding: 10px 16px 6px;
+  }
+  .archive-search input {
+    font-size: 13px; padding: 8px 12px 8px 32px;
+    background: #4A4A56; border-color: #55555E;
+    color: #D0D0D8;
+    border-radius: 6px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='%238A8A96' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 10px center;
+  }
+  .archive-search input::placeholder { color: #7A7A88; }
+
+  /* Source list — compact, bookmark-style */
+  .source-list {
+    flex: 1; overflow-y: auto;
+    padding: 4px 10px;
+  }
+  .source-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s;
+    margin-bottom: 1px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .source-item:hover {
+    background: rgba(0,0,0,0.10);
+  }
+  .source-item.selected {
+    background: rgba(34,211,238,0.08);
+  }
+  .source-indicator {
+    width: 3px; min-height: 28px; border-radius: 2px;
+    background: transparent;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: background 0.15s;
+  }
+  .source-item.selected .source-indicator {
+    background: #22D3EE;
+  }
+  .source-content {
+    flex: 1; min-width: 0;
+  }
+  .source-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 500;
+    color: #C8C8D0;
+    line-height: 1.4;
+    margin-bottom: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .source-item.selected .source-title {
+    color: #EEEEF2; font-weight: 600;
+  }
+  .source-domain {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: #7A7A88;
+    letter-spacing: 0.3px;
+  }
+
+  /* Archive footer */
+  .archive-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #58586A;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .archive-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #7A7A88;
+  }
+  .archive-footer-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px; font-weight: 600; color: #8A8A96;
+    background: none; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .archive-footer-btn:hover { color: #22D3EE; }
+
+  /* ── Library main panel ── */
+  .library-header {
+    padding: 24px 44px 0;
+  }
+  .library-source {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: #8A8A96;
+    margin-bottom: 4px;
+  }
+  .library-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 20px; font-weight: 700;
+    color: #EEEEF2;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .library-meta-row {
+    display: flex; gap: 16px; align-items: center;
+    margin-top: 8px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .library-meta-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #8A8A96;
+  }
+  .library-meta-tag span {
+    color: #22D3EE;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #55555E; border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Clipsight — Łupek v7</h1>
+  Nazwa robocza. Chronologia w bibliotece. Tożsamość notatki.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 0: FIRST LAUNCH — no history
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">0 · Pierwsze uruchomienie</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" placeholder="Wklej URL">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto</option><option>Polski</option><option>English</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option><option>Base</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" placeholder="Nazwy, skróty, kontekst">
+        </div>
+        <button class="btn-primary">Destyluj</button>
+      </div>
+
+      <div class="sidebar-section locked">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea placeholder="Domyślnie: 3 rady, 3 inspiracje, 3 obserwacje.&#10;Wpisz własne, żeby zastąpić."></textarea>
+        </div>
+        <button class="btn-secondary">Analizuj</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API</label>
+        <input type="password" placeholder="sk-or-v1-…">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item pending"><span class="status-dot"></span> Pobieranie <span class="meta"></span></div>
+        <div class="status-item pending"><span class="status-dot"></span> Transkrypcja <span class="meta"></span></div>
+        <div class="status-item pending"><span class="status-dot"></span> Analiza <span class="meta"></span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transkrypcja</button>
+          <button class="seg-btn disabled">Opracowanie</button>
+        </div>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">▽</div>
+        <h3>Wklej URL.</h3>
+        <p>Transkrypcja lokalna. Analiza na żądanie.<br>Nic nie opuszcza tej maszyny.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 1: LIBRARY — your knowledge base
+     Sidebar = sources (compact bookmarks) + search.
+     Main = fiszki of selected source.
+     "The library matters as much as the extraction."
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">1 · Biblioteka</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-mode-toggle">
+        <button class="mode-btn active">Archiwum</button>
+        <button class="mode-btn">Nowa</button>
+      </div>
+
+      <!-- Search — filters sources AND fiszki content -->
+      <div class="archive-search">
+        <input type="text" placeholder="Szukaj w źródłach i fiszkach">
+      </div>
+
+      <!-- Source list — compact bookmarks, not a log -->
+      <div class="source-list">
+        <div class="source-item selected">
+          <div class="source-indicator"></div>
+          <div class="source-content">
+            <div class="source-title">LLM i architektura kodu — nowy proces</div>
+            <div class="source-domain">youtube.com · 28 lut</div>
+          </div>
+        </div>
+        <div class="source-item">
+          <div class="source-indicator"></div>
+          <div class="source-content">
+            <div class="source-title">Prompt engineering to za mało — weryfikacja</div>
+            <div class="source-domain">youtube.com · 25 lut</div>
+          </div>
+        </div>
+        <div class="source-item">
+          <div class="source-indicator"></div>
+          <div class="source-content">
+            <div class="source-title">Obsidian workflow dla dziennikarzy</div>
+            <div class="source-domain">youtube.com · 22 lut</div>
+          </div>
+        </div>
+        <div class="source-item">
+          <div class="source-indicator"></div>
+          <div class="source-content">
+            <div class="source-title">RAG w praktyce — lokalne embeddingi</div>
+            <div class="source-domain">youtube.com · 18 lut</div>
+          </div>
+        </div>
+        <div class="source-item">
+          <div class="source-indicator"></div>
+          <div class="source-content">
+            <div class="source-title">Deepseek R1 — analiza architektury MoE</div>
+            <div class="source-domain">youtube.com · 12 lut</div>
+          </div>
+        </div>
+        <div class="source-item">
+          <div class="source-indicator"></div>
+          <div class="source-content">
+            <div class="source-title">Wywiad: przyszłość mediów lokalnych</div>
+            <div class="source-domain">youtube.com · 8 lut</div>
+          </div>
+        </div>
+        <div class="source-item">
+          <div class="source-indicator"></div>
+          <div class="source-content">
+            <div class="source-title">MLX Whisper — transkrypcja na Apple Silicon</div>
+            <div class="source-domain">youtube.com · 3 lut</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="archive-footer">
+        <span class="archive-count">7 fiszek · 63 insighty</span>
+        <button class="archive-footer-btn">Eksport</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn">Transkrypcja</button>
+          <button class="seg-btn active">Opracowanie</button>
+        </div>
+        <div class="toolbar-meta">
+          <span class="info">9 insightów</span>
+          <button class="action-btn">Kopiuj wszystko</button>
+          <button class="action-btn">Eksport</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="library-header">
+          <div class="library-source">youtube.com/watch?v=BpibZSMGtdY</div>
+          <div class="library-title">LLM i architektura kodu — nowy proces</div>
+          <div class="library-meta-row">
+            <span class="library-meta-tag"><span>turbo</span> · 14 230 zn.</span>
+            <span class="library-meta-tag">2026-02-28 · <span>1:42</span></span>
+          </div>
+        </div>
+
+        <div class="content-analysis" style="margin-top: 24px;">
+          <div class="note-section">
+            <div class="note-section-label"><span class="note-dot"></span> Praktyczne rady</div>
+            <div class="note-insight">
+              <div class="note-insight-title">Weryfikuj założenia modelu</div>
+              <div class="note-insight-body">Każdy output AI opiera się na ukrytych założeniach. Zanim wdrożysz propozycję, wylistuj co model przyjął za pewnik — i sprawdź.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Opisuj problem, nie rozwiązanie</div>
+              <div class="note-insight-body">Zamiast prosić o konkretny kod, opisz problem biznesowy. Pozwól modelowi zaproponować architekturę — potem ją krytykuj.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Iteruj publicznie</div>
+              <div class="note-insight-body">Prowadź rozmowę z modelem tak, jakby ktoś miał ją przeczytać. To wymusza precyzję i dokumentuje decyzje.</div>
+            </div>
+          </div>
+
+          <div class="note-section">
+            <div class="note-section-label"><span class="note-dot"></span> Inspiracje</div>
+            <div class="note-insight">
+              <div class="note-insight-title">Partner kontekstowy</div>
+              <div class="note-insight-body">LLM nie zastępuje programisty — zmienia rolę. To partner do myślenia o architekturze, nie wykonawca zadań.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Umiejętność przyszłości</div>
+              <div class="note-insight-body">Kompetencja to nie prompt engineering. To weryfikacja — umiejętność pytania „dlaczego tak?" wobec elegancko wyglądającego kodu.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Jawność założeń</div>
+              <div class="note-insight-body">Pisanie kodu od zera wymuszało jawne decyzje. Z AI dostajesz je ukryte. Świadomość tego jest już wartością.</div>
+            </div>
+          </div>
+
+          <div class="note-section">
+            <div class="note-section-label"><span class="note-dot"></span> Wnikliwe obserwacje</div>
+            <div class="note-insight">
+              <div class="note-insight-title">Pułapka kompletności</div>
+              <div class="note-insight-body">Im lepiej wygląda output modelu (testy, dokumentacja, typy), tym trudniej go zakwestionować. Forma maskuje treść.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Asymetria wiedzy</div>
+              <div class="note-insight-body">Model przetwarza kontekst na poziomie, którego wcześniej nie mieliśmy. Ale kontekst to nie zrozumienie — to wciąż na Tobie.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Iteracja zastąpiła planowanie</div>
+              <div class="note-insight-body">Tradycyjny cykl diagram→testy→kod ustępuje cyklowi opis→propozycja→krytyka. Zmiana procesu, nie tylko narzędzia.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 2: PROCESSING
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">2 · Przetwarzanie</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight — transkrypcja</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-mode-toggle">
+        <button class="mode-btn">Archiwum</button>
+        <button class="mode-btn active">Nowa</button>
+      </div>
+
+      <div class="sidebar-section" style="border-top: none;">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" value="youtube.com/watch?v=dQw4w9WgXcQ" style="color:#C8C8D0;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#A0A0AC;">
+        </div>
+        <button class="btn-primary" style="opacity:0.4; pointer-events:none;">Przetwarzanie.</button>
+      </div>
+
+      <div class="sidebar-section locked">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea placeholder="Domyślnie: 3 rady, 3 inspiracje, 3 obserwacje.&#10;Wpisz własne, żeby zastąpić."></textarea>
+        </div>
+        <button class="btn-secondary">Analizuj</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API</label>
+        <input type="password" value="sk-or-v1-••••••••••" style="color:#7A7A88;">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item done"><span class="status-dot"></span> Pobieranie <span class="meta">42s</span></div>
+        <div class="status-item active"><span class="status-dot"></span> Transkrypcja <span class="meta">turbo · 0:48</span></div>
+        <div class="status-item pending"><span class="status-dot"></span> Analiza <span class="meta"></span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="processing-bar"><div class="fill" style="width:65%;"></div></div>
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transkrypcja</button>
+          <button class="seg-btn disabled">Opracowanie</button>
+        </div>
+
+        <div class="toolbar-meta">
+          <span class="info" style="color:#22D3EE;">transkrypcja 65%</span>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="content-text" style="opacity: 0.5;">
+          <p>Dzisiaj chciałbym porozmawiać o tym, jak duże modele językowe zmieniają sposób, w jaki pracujemy z kodem. Nie chodzi mi o generowanie kodu — to jest trywialna część. Chodzi o to, jak zmienia się proces myślenia o architekturze…</p>
+          <p style="color:#60606C;">▍</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 3: TRANSCRIPT DONE
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">3 · Transkrypcja gotowa</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-mode-toggle">
+        <button class="mode-btn">Archiwum</button>
+        <button class="mode-btn active">Nowa</button>
+      </div>
+
+      <div class="sidebar-section" style="border-top: none;">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" value="youtube.com/watch?v=dQw4w9WgXcQ" style="color:#C8C8D0;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto → pl</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#A0A0AC;">
+        </div>
+        <button class="btn-primary">Destyluj</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea placeholder="Domyślnie: 3 rady, 3 inspiracje, 3 obserwacje.&#10;Wpisz własne, żeby zastąpić."></textarea>
+        </div>
+        <button class="btn-secondary">Analizuj</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API</label>
+        <input type="password" value="sk-or-v1-••••••••••" style="color:#7A7A88;">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item done"><span class="status-dot"></span> Pobieranie <span class="meta">42s</span></div>
+        <div class="status-item done"><span class="status-dot"></span> Transkrypcja <span class="meta">turbo · 18s</span></div>
+        <div class="status-item pending"><span class="status-dot"></span> Analiza <span class="meta"></span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transkrypcja</button>
+          <button class="seg-btn disabled">Opracowanie</button>
+        </div>
+
+        <div class="toolbar-meta">
+          <span class="info">14 230 zn.</span>
+          <button class="action-btn">Kopiuj</button>
+          <button class="action-btn">Eksport</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="content-text">
+          <p>Dzisiaj chciałbym porozmawiać o tym, jak duże modele językowe zmieniają sposób, w jaki pracujemy z kodem. Nie chodzi mi o generowanie kodu — to jest trywialna część. Chodzi o to, jak zmienia się proces myślenia o architekturze, o projektowaniu systemów, kiedy masz partnera, który potrafi przetworzyć kontekst na poziomie, którego wcześniej nie mieliśmy.</p>
+          <p>Zacznijmy od konkretnego przykładu. W zeszłym tygodniu pracowałem nad systemem przetwarzania danych, pipeline ETL. Tradycyjnie — siadasz, rysujesz diagram, myślisz o edge case'ach, piszesz testy. Teraz proces wygląda inaczej. Opisujesz problem, dostajesz propozycję architektury, iterujesz.</p>
+          <p>Pułapka polega na tym, że model daje ci rozwiązanie, które wygląda kompletnie, jest dobrze napisane, ma testy — ale jest oparte na założeniach, których nigdy nie zweryfikowałeś. I to jest moment, w którym krytyczne myślenie jest ważniejsze niż kiedykolwiek.</p>
+          <p>To prowadzi mnie do głównej tezy tego materiału: kompetencja przyszłości to nie prompt engineering, nie znajomość API modeli — to umiejętność weryfikacji.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 4: ANALYSIS IN PROGRESS — skeleton cards
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">4 · Analiza w toku</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight — analiza</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-mode-toggle">
+        <button class="mode-btn">Archiwum</button>
+        <button class="mode-btn active">Nowa</button>
+      </div>
+
+      <div class="sidebar-section" style="border-top: none;">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" value="youtube.com/watch?v=dQw4w9WgXcQ" style="color:#C8C8D0;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto → pl</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#A0A0AC;">
+        </div>
+        <button class="btn-primary">Destyluj</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea style="color:#A0A0AC; font-size:13px;">3 rady, 3 inspiracje, 3 obserwacje</textarea>
+        </div>
+        <button class="btn-secondary" style="opacity:0.4; pointer-events:none; border-color:#44444E;">Analizowanie.</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API</label>
+        <input type="password" value="sk-or-v1-••••••••••" style="color:#7A7A88;">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item done"><span class="status-dot"></span> Pobieranie <span class="meta">42s</span></div>
+        <div class="status-item done"><span class="status-dot"></span> Transkrypcja <span class="meta">turbo · 18s</span></div>
+        <div class="status-item active"><span class="status-dot"></span> Analiza <span class="meta">gemini · 0:03</span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="processing-bar"><div class="fill" style="width:40%;"></div></div>
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn">Transkrypcja</button>
+          <button class="seg-btn active">Opracowanie</button>
+        </div>
+        <div class="toolbar-meta">
+          <span class="info" style="color:#22D3EE;">analiza…</span>
+        </div>
+      </div>
+      <div class="content-area">
+        <!-- Note skeleton — document forming, not card grid -->
+        <div class="content-analysis synthesis-forming">
+
+          <div class="skel-block">
+            <div class="skel-heading" style="width:30%;"></div>
+            <div class="skel-entry">
+              <div class="skel-entry-title"></div>
+              <div class="skel-text-line" style="width:100%;"></div>
+              <div class="skel-text-line" style="width:85%;"></div>
+            </div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:60%;"></div>
+              <div class="skel-text-line" style="width:95%;"></div>
+              <div class="skel-text-line" style="width:75%;"></div>
+            </div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:40%;"></div>
+              <div class="skel-text-line" style="width:100%;"></div>
+              <div class="skel-text-line" style="width:65%;"></div>
+            </div>
+          </div>
+
+          <div class="skel-block" style="opacity:0.6;">
+            <div class="skel-heading" style="width:22%;"></div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:45%;"></div>
+              <div class="skel-text-line" style="width:100%;"></div>
+              <div class="skel-text-line" style="width:80%;"></div>
+            </div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:55%;"></div>
+              <div class="skel-text-line" style="width:90%;"></div>
+              <div class="skel-text-line" style="width:70%;"></div>
+            </div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:40%;"></div>
+              <div class="skel-text-line" style="width:95%;"></div>
+              <div class="skel-text-line" style="width:60%;"></div>
+            </div>
+          </div>
+
+          <div class="skel-block" style="opacity:0.35;">
+            <div class="skel-heading" style="width:38%;"></div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:50%;"></div>
+              <div class="skel-text-line" style="width:100%;"></div>
+              <div class="skel-text-line" style="width:75%;"></div>
+            </div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:40%;"></div>
+              <div class="skel-text-line" style="width:85%;"></div>
+              <div class="skel-text-line" style="width:65%;"></div>
+            </div>
+            <div class="skel-entry">
+              <div class="skel-entry-title" style="width:55%;"></div>
+              <div class="skel-text-line" style="width:90%;"></div>
+              <div class="skel-text-line" style="width:55%;"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 4→5: INTERACTIVE SYNTHESIS DEMO
+     Click to watch the full transition: skeleton → filled cards
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">4→5 · Animacja syntezy (kliknij Odtwórz)</div>
+<div class="window" id="demo-window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight — analiza</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-mode-toggle">
+        <button class="mode-btn">Archiwum</button>
+        <button class="mode-btn active">Nowa</button>
+      </div>
+      <div class="sidebar-section" style="border-top: none;">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" value="youtube.com/watch?v=dQw4w9WgXcQ" style="color:#C8C8D0;">
+        </div>
+        <button class="btn-primary" id="demo-play" style="background:linear-gradient(180deg,#0e3a3f 0%,#0a2a2e 100%); color:#22D3EE;">▶ Odtwórz animację</button>
+        <button class="btn-secondary" id="demo-reset" style="display:none;">↺ Reset</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea style="color:#A0A0AC; font-size:13px;">3 rady, 3 inspiracje, 3 obserwacje</textarea>
+        </div>
+        <button class="btn-secondary" id="demo-analyze-btn" style="opacity:0.4; pointer-events:none; border-color:#44444E;">Analizowanie.</button>
+      </div>
+      <div class="status-area">
+        <div class="status-item done"><span class="status-dot"></span> Pobieranie <span class="meta">42s</span></div>
+        <div class="status-item done"><span class="status-dot"></span> Transkrypcja <span class="meta">turbo · 18s</span></div>
+        <div class="status-item active" id="demo-status-analysis"><span class="status-dot"></span> Analiza <span class="meta" id="demo-timer">gemini · 0:00</span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="processing-bar" id="demo-progress"><div class="fill" id="demo-fill" style="width:0%;"></div></div>
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn">Transkrypcja</button>
+          <button class="seg-btn active">Opracowanie</button>
+        </div>
+        <div class="toolbar-meta">
+          <span class="info" id="demo-toolbar-info" style="color:#22D3EE;">analiza…</span>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="content-analysis synthesis-forming" id="demo-grid">
+
+          <div class="skel-block" id="demo-sec-1">
+            <div class="skel-heading" style="width:30%;"></div>
+            <div class="skel-entry"><div class="skel-entry-title"></div><div class="skel-text-line" style="width:100%;"></div><div class="skel-text-line" style="width:85%;"></div></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:60%;"></div><div class="skel-text-line" style="width:95%;"></div><div class="skel-text-line" style="width:75%;"></div></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:40%;"></div><div class="skel-text-line" style="width:100%;"></div><div class="skel-text-line" style="width:65%;"></div></div>
+          </div>
+
+          <div class="skel-block" id="demo-sec-2" style="opacity:0.6;">
+            <div class="skel-heading" style="width:22%;"></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:45%;"></div><div class="skel-text-line" style="width:100%;"></div><div class="skel-text-line" style="width:80%;"></div></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:55%;"></div><div class="skel-text-line" style="width:90%;"></div><div class="skel-text-line" style="width:70%;"></div></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:40%;"></div><div class="skel-text-line" style="width:95%;"></div><div class="skel-text-line" style="width:60%;"></div></div>
+          </div>
+
+          <div class="skel-block" id="demo-sec-3" style="opacity:0.35;">
+            <div class="skel-heading" style="width:38%;"></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:50%;"></div><div class="skel-text-line" style="width:100%;"></div><div class="skel-text-line" style="width:75%;"></div></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:40%;"></div><div class="skel-text-line" style="width:85%;"></div><div class="skel-text-line" style="width:65%;"></div></div>
+            <div class="skel-entry"><div class="skel-entry-title" style="width:55%;"></div><div class="skel-text-line" style="width:90%;"></div><div class="skel-text-line" style="width:55%;"></div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #demo-grid .skel-block { transition: opacity 0.6s ease-out; }
+  #demo-grid .note-section { transition: opacity 0.5s ease-out; }
+  #demo-grid .note-insight {
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  #demo-grid .note-insight.pre-reveal { opacity: 0; transform: translateY(6px); }
+  #demo-grid .note-insight.revealed { opacity: 1; transform: translateY(0); }
+  #demo-grid.synthesis-complete::after { display: none; }
+  #demo-progress .fill { transition: width 0.4s ease-out; }
+</style>
+
+<script>
+(function() {
+  var LABELS = ['Praktyczne rady', 'Inspiracje', 'Wnikliwe obserwacje'];
+  var TITLES = [
+    ['Weryfikuj założenia modelu','Opisuj problem, nie rozwiązanie','Iteruj publicznie'],
+    ['Partner kontekstowy','Umiejętność przyszłości','Jawność założeń'],
+    ['Pułapka kompletności','Asymetria wiedzy','Iteracja zastąpiła planowanie']
+  ];
+  var BODIES = [
+    ['Każdy output AI opiera się na ukrytych założeniach. Zanim wdrożysz propozycję, wylistuj co model przyjął za pewnik — i sprawdź.',
+     'Zamiast prosić o konkretny kod, opisz problem biznesowy. Pozwól modelowi zaproponować architekturę — potem ją krytykuj.',
+     'Prowadź rozmowę z modelem tak, jakby ktoś miał ją przeczytać. To wymusza precyzję i dokumentuje decyzje.'],
+    ['LLM nie zastępuje programisty — zmienia rolę. To partner do myślenia o architekturze, nie wykonawca zadań.',
+     'Kompetencja to nie prompt engineering. To weryfikacja — umiejętność pytania „dlaczego tak?" wobec elegancko wyglądającego kodu.',
+     'Pisanie kodu od zera wymuszało jawne decyzje. Z AI dostajesz je ukryte. Świadomość tego jest już wartością.'],
+    ['Im lepiej wygląda output modelu (testy, dokumentacja, typy), tym trudniej go zakwestionować. Forma maskuje treść.',
+     'Model przetwarza kontekst na poziomie, którego wcześniej nie mieliśmy. Ale kontekst to nie zrozumienie — to wciąż na Tobie.',
+     'Tradycyjny cykl diagram→testy→kod ustępuje cyklowi opis→propozycja→krytyka. Zmiana procesu, nie tylko narzędzia.']
+  ];
+
+  var timer = null, seconds = 0;
+
+  function makeNoteSection(secIdx) {
+    var section = document.createElement('div');
+    section.className = 'note-section';
+    var label = document.createElement('div');
+    label.className = 'note-section-label';
+    var dot = document.createElement('span');
+    dot.className = 'note-dot';
+    label.appendChild(dot);
+    label.appendChild(document.createTextNode(' ' + LABELS[secIdx]));
+    section.appendChild(label);
+    for (var i = 0; i < 3; i++) {
+      var insight = document.createElement('div');
+      insight.className = 'note-insight pre-reveal';
+      var t = document.createElement('div');
+      t.className = 'note-insight-title';
+      t.textContent = TITLES[secIdx][i];
+      var b = document.createElement('div');
+      b.className = 'note-insight-body';
+      b.textContent = BODIES[secIdx][i];
+      insight.appendChild(t);
+      insight.appendChild(b);
+      section.appendChild(insight);
+    }
+    return section;
+  }
+
+  function makeSkelBlock(opac, headW) {
+    var block = document.createElement('div');
+    block.className = 'skel-block';
+    if (opac) block.style.opacity = opac;
+    var h = document.createElement('div');
+    h.className = 'skel-heading';
+    h.style.width = headW || '30%';
+    block.appendChild(h);
+    for (var i = 0; i < 3; i++) {
+      var entry = document.createElement('div');
+      entry.className = 'skel-entry';
+      var et = document.createElement('div');
+      et.className = 'skel-entry-title';
+      et.style.width = [50, 60, 45][i] + '%';
+      entry.appendChild(et);
+      for (var j = 0; j < 2; j++) {
+        var line = document.createElement('div');
+        line.className = 'skel-text-line';
+        line.style.width = (j === 0 ? '100' : '75') + '%';
+        entry.appendChild(line);
+      }
+      block.appendChild(entry);
+    }
+    return block;
+  }
+
+  function revealSection(secNum) {
+    var secEl = document.getElementById('demo-sec-' + secNum);
+    var noteSection = makeNoteSection(secNum - 1);
+    secEl.parentNode.replaceChild(noteSection, secEl);
+    noteSection.id = 'demo-sec-' + secNum;
+    var insights = noteSection.querySelectorAll('.note-insight');
+    for (var i = 0; i < insights.length; i++) {
+      (function(el, delay) {
+        setTimeout(function() {
+          el.classList.remove('pre-reveal');
+          el.classList.add('revealed');
+        }, delay);
+      })(insights[i], 100 + i * 150);
+    }
+  }
+
+  function completeDemo() {
+    clearInterval(timer);
+    var grid = document.getElementById('demo-grid');
+    grid.classList.add('synthesis-complete');
+    document.getElementById('demo-status-analysis').className = 'status-item done';
+    document.getElementById('demo-timer').textContent = 'gemini · ' + seconds + 's';
+    document.getElementById('demo-toolbar-info').style.color = '#9A9AA5';
+    document.getElementById('demo-toolbar-info').textContent = '9 insightów';
+    var btn = document.getElementById('demo-analyze-btn');
+    btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
+    btn.style.borderColor = '#55555E'; btn.textContent = 'Analizuj';
+    setTimeout(function() {
+      var p = document.getElementById('demo-progress');
+      p.style.opacity = '0'; p.style.transition = 'opacity 0.5s';
+    }, 400);
+  }
+
+  window.playDemo = function() {
+    document.getElementById('demo-play').style.display = 'none';
+    document.getElementById('demo-reset').style.display = 'block';
+    seconds = 0;
+    timer = setInterval(function() {
+      seconds++;
+      document.getElementById('demo-timer').textContent = 'gemini · 0:' + String(seconds).padStart(2, '0');
+    }, 1000);
+    document.getElementById('demo-fill').style.width = '15%';
+    setTimeout(function() { document.getElementById('demo-fill').style.width = '40%'; revealSection(1); }, 1500);
+    setTimeout(function() { document.getElementById('demo-fill').style.width = '70%'; revealSection(2); }, 3000);
+    setTimeout(function() { document.getElementById('demo-fill').style.width = '95%'; revealSection(3); }, 4500);
+    setTimeout(function() { document.getElementById('demo-fill').style.width = '100%'; completeDemo(); }, 5500);
+  };
+
+  window.resetDemo = function() {
+    clearInterval(timer);
+    document.getElementById('demo-play').style.display = 'block';
+    document.getElementById('demo-reset').style.display = 'none';
+    var grid = document.getElementById('demo-grid');
+    grid.classList.remove('synthesis-complete');
+    var p = document.getElementById('demo-progress');
+    p.style.opacity = '1'; p.style.transition = '';
+    document.getElementById('demo-fill').style.width = '0%';
+    document.getElementById('demo-toolbar-info').style.color = '#22D3EE';
+    document.getElementById('demo-toolbar-info').textContent = 'analiza…';
+    document.getElementById('demo-timer').textContent = 'gemini · 0:00';
+    document.getElementById('demo-status-analysis').className = 'status-item active';
+    var btn = document.getElementById('demo-analyze-btn');
+    btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none';
+    btn.style.borderColor = '#44444E'; btn.textContent = 'Analizowanie.';
+    var opacs = ['1', '0.6', '0.35'];
+    var widths = ['30%', '22%', '38%'];
+    [1, 2, 3].forEach(function(n) {
+      var old = document.getElementById('demo-sec-' + n);
+      var skel = makeSkelBlock(n > 1 ? opacs[n-1] : null, widths[n-1]);
+      skel.id = 'demo-sec-' + n;
+      old.parentNode.replaceChild(skel, old);
+    });
+  };
+})();
+</script>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 5: ANALYSIS DONE — note format
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">5 · Opracowanie</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-mode-toggle">
+        <button class="mode-btn">Archiwum</button>
+        <button class="mode-btn active">Nowa</button>
+      </div>
+
+      <div class="sidebar-section" style="border-top: none;">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" value="youtube.com/watch?v=dQw4w9WgXcQ" style="color:#C8C8D0;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto → pl</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#A0A0AC;">
+        </div>
+        <button class="btn-primary">Destyluj</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea style="color:#A0A0AC; font-size:13px;">3 rady, 3 inspiracje, 3 obserwacje</textarea>
+        </div>
+        <button class="btn-secondary">Analizuj</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API</label>
+        <input type="password" value="sk-or-v1-••••••••••" style="color:#7A7A88;">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item done"><span class="status-dot"></span> Pobieranie <span class="meta">42s</span></div>
+        <div class="status-item done"><span class="status-dot"></span> Transkrypcja <span class="meta">turbo · 18s</span></div>
+        <div class="status-item done"><span class="status-dot"></span> Analiza <span class="meta">gemini · 4s</span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn">Transkrypcja</button>
+          <button class="seg-btn active">Opracowanie</button>
+        </div>
+        <div class="toolbar-meta">
+          <span class="info">9 insightów</span>
+          <button class="action-btn">Kopiuj</button>
+          <button class="action-btn">Eksport</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="library-header">
+          <div class="library-source">youtube.com/watch?v=dQw4w9WgXcQ</div>
+          <div class="library-title">LLM i architektura kodu — nowy proces</div>
+          <div class="library-meta-row">
+            <span class="library-meta-tag"><span>turbo</span> · 14 230 zn.</span>
+            <span class="library-meta-tag">2026-03-01 · <span>1:42</span></span>
+          </div>
+        </div>
+
+        <div class="content-analysis" style="margin-top: 24px;">
+
+          <div class="note-section">
+            <div class="note-section-label"><span class="note-dot"></span> Praktyczne rady</div>
+            <div class="note-insight">
+              <div class="note-insight-title">Weryfikuj założenia modelu</div>
+              <div class="note-insight-body">Każdy output AI opiera się na ukrytych założeniach. Zanim wdrożysz propozycję, wylistuj co model przyjął za pewnik — i sprawdź.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Opisuj problem, nie rozwiązanie</div>
+              <div class="note-insight-body">Zamiast prosić o konkretny kod, opisz problem biznesowy. Pozwól modelowi zaproponować architekturę — potem ją krytykuj.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Iteruj publicznie</div>
+              <div class="note-insight-body">Prowadź rozmowę z modelem tak, jakby ktoś miał ją przeczytać. To wymusza precyzję i dokumentuje decyzje.</div>
+            </div>
+          </div>
+
+          <div class="note-section">
+            <div class="note-section-label"><span class="note-dot"></span> Inspiracje</div>
+            <div class="note-insight">
+              <div class="note-insight-title">Partner kontekstowy</div>
+              <div class="note-insight-body">LLM nie zastępuje programisty — zmienia rolę. To partner do myślenia o architekturze, nie wykonawca zadań.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Umiejętność przyszłości</div>
+              <div class="note-insight-body">Kompetencja to nie prompt engineering. To weryfikacja — umiejętność pytania „dlaczego tak?" wobec elegancko wyglądającego kodu.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Jawność założeń</div>
+              <div class="note-insight-body">Pisanie kodu od zera wymuszało jawne decyzje. Z AI dostajesz je ukryte. Świadomość tego jest już wartością.</div>
+            </div>
+          </div>
+
+          <div class="note-section">
+            <div class="note-section-label"><span class="note-dot"></span> Wnikliwe obserwacje</div>
+            <div class="note-insight">
+              <div class="note-insight-title">Pułapka kompletności</div>
+              <div class="note-insight-body">Im lepiej wygląda output modelu (testy, dokumentacja, typy), tym trudniej go zakwestionować. Forma maskuje treść.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Asymetria wiedzy</div>
+              <div class="note-insight-body">Model przetwarza kontekst na poziomie, którego wcześniej nie mieliśmy. Ale kontekst to nie zrozumienie — to wciąż na Tobie.</div>
+            </div>
+            <div class="note-insight">
+              <div class="note-insight-title">Iteracja zastąpiła planowanie</div>
+              <div class="note-insight-body">Tradycyjny cykl diagram→testy→kod ustępuje cyklowi opis→propozycja→krytyka. Zmiana procesu, nie tylko narzędzia.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     BONUS: Warning banners
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">Bannery</div>
+<div class="window" style="height:130px;">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span><span class="tl-minimize"></span><span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">Clipsight</span>
+  </div>
+  <div class="warning-banner neon">
+    <span>⚠</span>
+    <span>Brak Deno. YouTube może nie działać.</span>
+    <button class="dismiss">Napraw</button>
+  </div>
+  <div class="warning-banner neon" style="background:rgba(34,211,238,0.03);">
+    <span>↑</span>
+    <span>yt-dlp 2025.01 → 2025.06</span>
+    <button class="dismiss">Aktualizuj</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     FONT COMPARISON: Brand wordmark candidates
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">Czcionka brandu — porównanie</div>
+
+<style>
+  .font-compare {
+    width: 1080px;
+    display: flex; flex-direction: column;
+    gap: 0;
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.08);
+  }
+  .font-row {
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid #50505C;
+  }
+  .font-row:last-child { border-bottom: none; }
+
+  .font-label-col {
+    width: 220px; min-width: 220px;
+    background: #6E6E7A;
+    padding: 20px 24px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .font-label-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 700;
+    color: #22D3EE;
+  }
+  .font-label-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 400;
+    color: #8A8A96;
+    line-height: 1.4;
+  }
+  .font-label-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: #66666E;
+    margin-top: 2px;
+  }
+
+  .font-preview-col {
+    flex: 1;
+    background: #7A7A85;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+    padding: 28px 36px;
+  }
+
+  /* Titlebar simulation */
+  .font-titlebar-sim {
+    height: 44px;
+    background: linear-gradient(180deg, #636370 0%, #5E5E6A 100%);
+    border-radius: 8px;
+    display: flex; align-items: center;
+    padding: 0 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .font-titlebar-sim .mini-dots {
+    display: flex; gap: 6px; margin-right: 16px;
+  }
+  .font-titlebar-sim .mini-dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .font-titlebar-sim .mini-dots .d-r { background: #FF5F57; }
+  .font-titlebar-sim .mini-dots .d-y { background: #FFBD2E; }
+  .font-titlebar-sim .mini-dots .d-g { background: #28C840; }
+  .font-titlebar-sim .tb-name {
+    flex: 1; text-align: center;
+    font-size: 13px; font-weight: 600;
+    color: #B0B0BA;
+    margin-right: 58px;
+  }
+
+  /* Display size */
+  .font-display {
+    font-size: 36px; font-weight: 600;
+    color: #EEEEF2;
+    letter-spacing: -0.01em;
+  }
+  .font-display-sub {
+    font-size: 15px; font-weight: 500;
+    color: #8A8A96;
+    margin-top: -8px;
+  }
+
+  .font-row.recommended {
+    outline: 1.5px solid rgba(34,211,238,0.25);
+    outline-offset: -1.5px;
+  }
+  .font-row.recommended .font-label-col {
+    background: rgba(34,211,238,0.06);
+  }
+</style>
+
+<div class="font-compare">
+
+  <!-- #1 Space Grotesk -->
+  <div class="font-row recommended">
+    <div class="font-label-col">
+      <div class="font-label-name">#1 Space Grotesk</div>
+      <div class="font-label-desc">Geometric sans z DNA monospace. Precyzja terminala, elegancja produktu.</div>
+      <div class="font-label-tag">waga 600 · Google Fonts</div>
+    </div>
+    <div class="font-preview-col">
+      <div class="font-titlebar-sim">
+        <div class="mini-dots"><span class="d-r"></span><span class="d-y"></span><span class="d-g"></span></div>
+        <div class="tb-name" style="font-family:'Space Grotesk',sans-serif; font-weight:600;">Clipsight</div>
+      </div>
+      <div class="font-display" style="font-family:'Space Grotesk',sans-serif;">Clipsight</div>
+      <div class="font-display-sub" style="font-family:'Space Grotesk',sans-serif;">Clipsight — transkrypcja &nbsp;·&nbsp; Clipsight — analiza</div>
+    </div>
+  </div>
+
+  <!-- #2 Bricolage Grotesque -->
+  <div class="font-row">
+    <div class="font-label-col">
+      <div class="font-label-name">#2 Bricolage Grotesque</div>
+      <div class="font-label-desc">Ink traps, redakcyjny charakter. Zapada w pamięć szybciej.</div>
+      <div class="font-label-tag">waga 600 · Google Fonts</div>
+    </div>
+    <div class="font-preview-col">
+      <div class="font-titlebar-sim">
+        <div class="mini-dots"><span class="d-r"></span><span class="d-y"></span><span class="d-g"></span></div>
+        <div class="tb-name" style="font-family:'Bricolage Grotesque',sans-serif; font-weight:600;">Clipsight</div>
+      </div>
+      <div class="font-display" style="font-family:'Bricolage Grotesque',sans-serif;">Clipsight</div>
+      <div class="font-display-sub" style="font-family:'Bricolage Grotesque',sans-serif;">Clipsight — transkrypcja &nbsp;·&nbsp; Clipsight — analiza</div>
+    </div>
+  </div>
+
+  <!-- #3 Familjen Grotesk -->
+  <div class="font-row">
+    <div class="font-label-col">
+      <div class="font-label-name">#3 Familjen Grotesk</div>
+      <div class="font-label-desc">Skandynawski grotesque. Mechaniczny, precyzyjny, duży x-height.</div>
+      <div class="font-label-tag">waga 600 · Google Fonts</div>
+    </div>
+    <div class="font-preview-col">
+      <div class="font-titlebar-sim">
+        <div class="mini-dots"><span class="d-r"></span><span class="d-y"></span><span class="d-g"></span></div>
+        <div class="tb-name" style="font-family:'Familjen Grotesk',sans-serif; font-weight:600;">Clipsight</div>
+      </div>
+      <div class="font-display" style="font-family:'Familjen Grotesk',sans-serif;">Clipsight</div>
+      <div class="font-display-sub" style="font-family:'Familjen Grotesk',sans-serif;">Clipsight — transkrypcja &nbsp;·&nbsp; Clipsight — analiza</div>
+    </div>
+  </div>
+
+  <!-- Reference: current Inter -->
+  <div class="font-row" style="opacity:0.5;">
+    <div class="font-label-col">
+      <div class="font-label-name" style="color:#8A8A96;">Ref: Inter (obecna)</div>
+      <div class="font-label-desc">Neutralna, niewidzialna. Brak tożsamości jako brand font.</div>
+      <div class="font-label-tag">waga 600 · UI font</div>
+    </div>
+    <div class="font-preview-col">
+      <div class="font-titlebar-sim">
+        <div class="mini-dots"><span class="d-r"></span><span class="d-y"></span><span class="d-g"></span></div>
+        <div class="tb-name" style="font-family:'Inter',sans-serif; font-weight:600;">Clipsight</div>
+      </div>
+      <div class="font-display" style="font-family:'Inter',sans-serif;">Clipsight</div>
+      <div class="font-display-sub" style="font-family:'Inter',sans-serif;">Clipsight — transkrypcja &nbsp;·&nbsp; Clipsight — analiza</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

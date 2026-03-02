@@ -8,3 +8,13 @@ dist/
 build/
 *.spec
 .claude/
+
+# User config (API key lives in .env, settings are local)
+settings.json
+
+# Legacy backup (Flet-based app, superseded by PyWebView)
+app_flet_backup.py
+
+# Binary design assets (moodboards, AI-generated mockups)
+prototypes/moodboard-assets/
+prototypes/screens-inspirations/

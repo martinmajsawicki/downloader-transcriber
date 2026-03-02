@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dTr — Destylator v5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #111;
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 32px 48px;
+    gap: 64px;
+  }
+
+  /* ── Page header ── */
+  .page-header {
+    text-align: center;
+    padding-top: 16px;
+    color: #666;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  .page-header h1 {
+    font-size: 14px; font-weight: 600; color: #888;
+    margin-bottom: 4px;
+  }
+
+  /* ── Section labels between mockups ── */
+  .state-label {
+    color: #D97706;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: -48px;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     macOS Window Shell
+     ══════════════════════════════════════════════════════ */
+  .window {
+    width: 1060px;
+    height: 660px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow:
+      0 24px 80px rgba(0,0,0,0.55),
+      0 0 0 0.5px rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    background: #1C1C1E;
+  }
+
+  /* Title bar */
+  .titlebar {
+    height: 52px; min-height: 52px;
+    background: #252528;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 0 20px;
+    gap: 14px;
+  }
+  .traffic-lights {
+    display: flex; gap: 8px;
+  }
+  .traffic-lights span {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .tl-close { background: #FF5F57; }
+  .tl-minimize { background: #FFBD2E; }
+  .tl-maximize { background: #28C840; }
+
+  .titlebar-title {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    font-size: 13px; font-weight: 600; color: #666;
+  }
+
+  /* Body = sidebar + main */
+  .body { flex: 1; display: flex; overflow: hidden; }
+
+  /* ══════════════════════════════════════════════════════
+     SIDEBAR
+     Grid: 8px base. Sections separated by 1px + spacing.
+     ══════════════════════════════════════════════════════ */
+  .sidebar {
+    width: 272px; min-width: 272px;
+    background: #222225;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .sidebar-section {
+    padding: 20px;
+  }
+  .sidebar-section + .sidebar-section {
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #D97706;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label .num {
+    color: #444;
+  }
+
+  /* Form fields — 8px vertical rhythm */
+  .field { margin-bottom: 10px; }
+  .field:last-child { margin-bottom: 0; }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    background: #1A1A1C;
+    border: 1px solid #333336;
+    border-radius: 8px;
+    color: #C8C8C8;
+    padding: 9px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #D97706;
+    box-shadow: 0 0 0 3px rgba(217,119,6,0.12);
+  }
+  input::placeholder, textarea::placeholder {
+    color: #3D3D40;
+  }
+  select {
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #999;
+  }
+  textarea {
+    font-size: 13px;
+    resize: none;
+    min-height: 52px;
+    line-height: 1.5;
+  }
+  .field-row {
+    display: flex;
+    gap: 8px;
+  }
+  .field-row > * { flex: 1; }
+
+  /* URL input — larger, this is THE entry point */
+  .url-input {
+    font-size: 14px;
+    padding: 11px 12px;
+    background: #1A1A1C;
+    border-color: #3A3A3E;
+  }
+  .url-input:focus {
+    border-color: #D97706;
+    box-shadow: 0 0 0 3px rgba(217,119,6,0.15);
+  }
+  .url-input::placeholder {
+    color: #444;
+  }
+
+  /* ── Primary action — the valve ── */
+  .btn-primary {
+    width: 100%;
+    border: none;
+    cursor: pointer;
+    background: #D97706;
+    color: #000;
+    padding: 10px 16px;
+    margin-top: 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    letter-spacing: 0.2px;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary:hover {
+    background: #E5850A;
+    box-shadow: 0 0 20px rgba(217,119,6,0.2);
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary {
+    width: 100%;
+    border: 1.5px solid #444;
+    cursor: pointer;
+    background: transparent;
+    color: #999;
+    padding: 9px 16px;
+    margin-top: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover {
+    border-color: #D97706;
+    color: #D97706;
+  }
+
+  /* ── API key — recessed, quiet ── */
+  .api-section {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .api-section input {
+    font-size: 11px;
+    padding: 6px 10px;
+    border-color: #2A2A2D;
+    color: #555;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .api-section .field-label { font-size: 10px; color: #444; }
+
+  /* ── Status — at bottom, satisfying checklist ── */
+  .status-area {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    background: rgba(0,0,0,0.15);
+  }
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 12px;
+    color: #444;
+    transition: color 0.3s;
+  }
+
+  /* Status dot with glow when done */
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .status-item.done .status-dot {
+    background: #D97706;
+    box-shadow: 0 0 6px rgba(217,119,6,0.4);
+  }
+  .status-item.done { color: #888; }
+  .status-item.active .status-dot {
+    background: #D97706;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .status-item.active { color: #D97706; font-weight: 500; }
+  .status-item.pending .status-dot {
+    border: 1.5px solid #333;
+    background: transparent;
+  }
+  .status-item .meta {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #3A3A3A;
+  }
+  .status-item.done .meta { color: #555; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(217,119,6,0.4); }
+    50% { opacity: 0.4; box-shadow: 0 0 2px rgba(217,119,6,0.1); }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     MAIN CONTENT AREA
+     ══════════════════════════════════════════════════════ */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #1C1C1E;
+    min-width: 0;
+  }
+
+  /* Toolbar — segmented control + metadata */
+  .toolbar {
+    height: 44px; min-height: 44px;
+    background: #222225;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+  }
+
+  .segmented {
+    display: flex;
+    background: #1A1A1C;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px 18px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .seg-btn:hover { color: #999; }
+  .seg-btn.active {
+    background: #333336;
+    color: #E0E0E0;
+    font-weight: 600;
+  }
+
+  .toolbar-meta {
+    margin-left: auto;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .toolbar-meta .info {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #444;
+  }
+  .toolbar-meta .action-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 5px;
+    transition: all 0.15s;
+  }
+  .toolbar-meta .action-btn:hover {
+    background: #2A2A2D;
+    color: #D97706;
+  }
+
+  /* Content */
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+  }
+  .content-text {
+    max-width: 660px;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    color: #BCBCBC;
+    line-height: 1.9;
+    font-weight: 400;
+  }
+  .content-text p {
+    margin-bottom: 1.3em;
+  }
+
+  /* ── Empty state — welcoming, not dead ── */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+  }
+  .empty-icon {
+    width: 48px; height: 48px;
+    border: 2px solid #2A2A2D;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 20px;
+  }
+  .empty-state h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+  }
+  .empty-state p {
+    font-size: 14px;
+    color: #3A3A3D;
+    line-height: 1.6;
+    max-width: 300px;
+  }
+
+  /* ── Processing state ── */
+  .processing-bar {
+    height: 2px;
+    background: #2A2A2D;
+    position: relative;
+    overflow: hidden;
+  }
+  .processing-bar .fill {
+    height: 100%;
+    background: #D97706;
+    width: 65%;
+    transition: width 0.5s ease;
+    position: relative;
+  }
+  .processing-bar .fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0;
+    width: 80px; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(217,119,6,0.6));
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Warning banner (for Deno/update) ── */
+  .warning-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .warning-banner.amber {
+    background: rgba(217,119,6,0.08);
+    color: #D97706;
+  }
+  .warning-banner .dismiss {
+    margin-left: auto;
+    background: none;
+    border: 1px solid rgba(217,119,6,0.3);
+    color: #D97706;
+    padding: 3px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     DISABLED / LOCKED sections (progressive disclosure)
+     ══════════════════════════════════════════════════════ */
+  .sidebar-section.locked {
+    opacity: 0.35;
+    pointer-events: none;
+    position: relative;
+  }
+  .sidebar-section.locked::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb:hover { background: #444; }
+</style>
+</head>
+<body>
+
+<!-- ── Page header ── -->
+<div class="page-header">
+  <h1>dTr — Destylator — Refined Mockups</h1>
+  Trzy stany: pusty → przetwarzanie → gotowy
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 1: EMPTY — app just opened, waiting for input
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">Stan: pusty — appka czeka na zadanie</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span>
+      <span class="tl-minimize"></span>
+      <span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" placeholder="Wklej link YouTube…">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto</option><option>Polski</option><option>English</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option><option>Base</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" placeholder="Kontekst: nazwy, slang… (opcja)">
+        </div>
+        <button class="btn-primary">Destyluj</button>
+      </div>
+
+      <div class="sidebar-section locked">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea placeholder="Polecenie dla AI…"></textarea>
+        </div>
+        <button class="btn-secondary">Opracuj z AI</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API (OpenRouter)</label>
+        <input type="password" placeholder="sk-or-v1-…">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item pending">
+          <span class="status-dot"></span>
+          Pobieranie
+          <span class="meta"></span>
+        </div>
+        <div class="status-item pending">
+          <span class="status-dot"></span>
+          Transkrypcja
+          <span class="meta"></span>
+        </div>
+        <div class="status-item pending">
+          <span class="status-dot"></span>
+          Analiza
+          <span class="meta"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transkrypcja</button>
+          <button class="seg-btn">Opracowanie</button>
+        </div>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">▽</div>
+        <h3>Wklej link i destyluj</h3>
+        <p>Pobiorę audio, przetranskrybuję lokalnie i przygotuję do analizy.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 2: PROCESSING — transcription in progress
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">Stan: transkrypcja w toku</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span>
+      <span class="tl-minimize"></span>
+      <span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr — transkrybuję…</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" value="https://youtube.com/watch?v=BpibZSMGtdY" style="color:#999;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#777;">
+        </div>
+        <button class="btn-primary" style="opacity:0.5; pointer-events:none;">Destyluj…</button>
+      </div>
+
+      <div class="sidebar-section locked">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea placeholder="Polecenie dla AI…"></textarea>
+        </div>
+        <button class="btn-secondary">Opracuj z AI</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API (OpenRouter)</label>
+        <input type="password" value="sk-or-v1-••••••••••" style="color:#444;">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item done">
+          <span class="status-dot"></span>
+          Pobieranie
+          <span class="meta">42s</span>
+        </div>
+        <div class="status-item active">
+          <span class="status-dot"></span>
+          Transkrypcja — turbo
+          <span class="meta">0:48…</span>
+        </div>
+        <div class="status-item pending">
+          <span class="status-dot"></span>
+          Analiza
+          <span class="meta"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="processing-bar"><div class="fill" style="width:65%;"></div></div>
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transkrypcja</button>
+          <button class="seg-btn">Opracowanie</button>
+        </div>
+        <div class="toolbar-meta">
+          <span class="info" style="color:#D97706;">transkrybuję… 65%</span>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="content-text" style="color:#666;">
+          <p>Dzisiaj chciałbym porozmawiać o tym, jak duże modele językowe zmieniają sposób, w jaki pracujemy z kodem. Nie chodzi mi o generowanie kodu — to jest trywialna część. Chodzi o to, jak zmienia się proces myślenia o architekturze, o projektowaniu systemów…</p>
+          <p style="color:#444;">▍</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STATE 3: DONE — transcription ready, analysis unlocked
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">Stan: gotowe — transkrypcja i sekcja analizy odblokowana</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span>
+      <span class="tl-minimize"></span>
+      <span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr</span>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">01</span> Źródło</div>
+        <div class="field">
+          <input type="text" class="url-input" value="https://youtube.com/watch?v=BpibZSMGtdY" style="color:#999;">
+        </div>
+        <div class="field field-row">
+          <div>
+            <label class="field-label">Język</label>
+            <select><option>Auto → pl</option></select>
+          </div>
+          <div>
+            <label class="field-label">Model</label>
+            <select><option>Turbo</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <input type="text" value="LLM, pipeline ETL" style="color:#777;">
+        </div>
+        <button class="btn-primary">Destyluj</button>
+      </div>
+
+      <!-- Unlocked now! -->
+      <div class="sidebar-section">
+        <div class="section-label"><span class="num">02</span> Analiza</div>
+        <div class="field">
+          <textarea placeholder="Domyślnie: ocena, insighty, use cases…&#10;Wpisz własne, żeby zastąpić."></textarea>
+        </div>
+        <button class="btn-secondary">Opracuj z AI</button>
+      </div>
+
+      <div class="api-section">
+        <label class="field-label">Klucz API (OpenRouter)</label>
+        <input type="password" value="sk-or-v1-••••••••••" style="color:#444;">
+      </div>
+
+      <div class="status-area">
+        <div class="status-item done">
+          <span class="status-dot"></span>
+          Pobieranie
+          <span class="meta">42s</span>
+        </div>
+        <div class="status-item done">
+          <span class="status-dot"></span>
+          Transkrypcja
+          <span class="meta">turbo · 18s</span>
+        </div>
+        <div class="status-item pending">
+          <span class="status-dot"></span>
+          Analiza
+          <span class="meta"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg-btn active">Transkrypcja</button>
+          <button class="seg-btn">Opracowanie</button>
+        </div>
+        <div class="toolbar-meta">
+          <span class="info">14 230 zn.</span>
+          <button class="action-btn">Kopiuj</button>
+          <button class="action-btn">Eksport</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="content-text">
+          <p>Dzisiaj chciałbym porozmawiać o tym, jak duże modele językowe zmieniają sposób, w jaki pracujemy z kodem. Nie chodzi mi o generowanie kodu — to jest trywialna część. Chodzi o to, jak zmienia się proces myślenia o architekturze, o projektowaniu systemów, kiedy masz partnera, który potrafi przetworzyć kontekst na poziomie, którego wcześniej nie mieliśmy.</p>
+          <p>Zacznijmy od konkretnego przykładu. W zeszłym tygodniu pracowałem nad systemem przetwarzania danych, pipeline ETL. Tradycyjnie — siadasz, rysujesz diagram, myślisz o edge case'ach, piszesz testy. Teraz proces wygląda inaczej. Opisujesz problem, dostajesz propozycję architektury, iterujesz. Ale tu jest pułapka, o której mało kto mówi.</p>
+          <p>Pułapka polega na tym, że model daje ci rozwiązanie, które wygląda kompletnie, jest dobrze napisane, ma testy — ale jest oparte na założeniach, których nigdy nie zweryfikowałeś. I to jest moment, w którym krytyczne myślenie jest ważniejsze niż kiedykolwiek. Bo wcześniej, kiedy sam pisałeś kod od zera, każde założenie musiałeś jawnie podjąć. Teraz dostajesz je w pakiecie, ukryte w eleganckim kodzie.</p>
+          <p>To prowadzi mnie do głównej tezy tego materiału: kompetencja przyszłości to nie prompt engineering, nie znajomość API modeli — to umiejętność weryfikacji. Umiejętność patrzenia na output i pytania: „dlaczego tak, a nie inaczej?", „jakie są alternatywy?", „co ten kod zakłada?"</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     BONUS: Warning banner example
+     ══════════════════════════════════════════════════════════ -->
+<div class="state-label">Bonus: banner ostrzegawczy (brak Deno / update yt-dlp)</div>
+<div class="window" style="height:120px;">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <span class="tl-close"></span>
+      <span class="tl-minimize"></span>
+      <span class="tl-maximize"></span>
+    </div>
+    <span class="titlebar-title">dTr</span>
+  </div>
+  <div class="warning-banner amber">
+    <span>⚠</span>
+    <span>Brak Deno — YouTube może nie działać poprawnie.</span>
+    <button class="dismiss">Jak naprawić</button>
+  </div>
+  <div class="warning-banner amber" style="background:rgba(217,119,6,0.05);">
+    <span>↑</span>
+    <span>yt-dlp 2025.01 → 2025.06 dostępny</span>
+    <button class="dismiss">Aktualizuj</button>
+  </div>
+</div>
+
+
+</body>
+</html>

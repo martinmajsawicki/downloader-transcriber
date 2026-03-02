@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Copysight — Screen 4: The Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Sans+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --base:       #F7E9C1;
+    --red:        #D1344B;
+    --blue:       #4A89C5;
+    --gold:       #E5B742;
+    --ink:        #2B2B2B;
+    --ink-light:  #4A4A4A;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #D5CEC4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+
+  /* ===== WINDOW =====
+     Same dimensions as Screen 1 & 3.
+     No gears — the Library is clean text. */
+
+  .window {
+    width: 680px;
+    border-radius: 10px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.5) inset,
+      0 30px 80px rgba(0,0,0,0.28),
+      0 4px 12px rgba(0,0,0,0.18),
+      inset 0 0 50px rgba(140,115,65,0.04);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+
+    /* Smooth manila — same calm surface as Screen 3 */
+    background:
+      radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(150,125,70,0.05) 100%),
+      radial-gradient(ellipse at 35% 40%, rgba(250,225,165,0.10), transparent 55%),
+      linear-gradient(178deg, #F9EECC 0%, var(--base) 40%, #F6E5B8 100%);
+  }
+
+  /* Very subtle grain — same as Screen 3 */
+  .window::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    background-size: 200px;
+    pointer-events: none;
+    border-radius: 10px;
+    z-index: 3;
+    mix-blend-mode: multiply;
+  }
+
+  /* No coarse layer, no gears — Library is the clean filing cabinet */
+
+  /* ===== TITLEBAR ===== */
+
+  .titlebar {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 100%);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    z-index: 5;
+    flex-shrink: 0;
+  }
+
+  .traffic-lights { display: flex; gap: 8px; }
+
+  .traffic-light {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(0,0,0,0.15);
+  }
+  .tl-close { background: linear-gradient(180deg, #FF6058, #E14640); }
+  .tl-min   { background: linear-gradient(180deg, #FFC02E, #DFA524); }
+  .tl-max   { background: linear-gradient(180deg, #2ACB42, #1FA634); }
+
+  .titlebar-text {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink); opacity: 0.4;
+  }
+
+  /* ===== MAIN LAYOUT =====
+     Sidebar tabs on left + content area on right.
+     Fixed height to match other screens. */
+
+  .main {
+    display: flex;
+    height: 340px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ===== SIDEBAR =====
+     Vertical staggered folder tabs — age-based filing system.
+     Flat colored rectangles with white rotated text.
+     Inspired by physical filing cabinet tabs. */
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0 12px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    width: 36px;
+  }
+
+  .tab {
+    width: 32px;
+    border-radius: 0 6px 6px 0;
+    padding: 14px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: opacity 0.15s ease;
+  }
+
+  .tab span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.92);
+    user-select: none;
+  }
+
+  .tab:hover { opacity: 0.85; }
+
+  .tab.active {
+    width: 36px;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+  }
+
+  .tab-fresh   { background: var(--ink); }
+  .tab-recent  { background: var(--blue); }
+  .tab-settled { background: var(--red); }
+  .tab-gold    { background: var(--gold); }
+  .tab-gold span { color: rgba(43,43,43,0.85); }
+
+  /* ===== CONTENT AREA ===== */
+
+  .content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 28px 0 20px;
+    overflow: hidden;
+  }
+
+  /* ===== SEARCH BAR =====
+     Thin outline, zero 3D. Clean and functional. */
+
+  .search-bar {
+    width: 100%;
+    height: 32px;
+    border: 1px solid rgba(43,43,43,0.18);
+    border-radius: 4px;
+    background: transparent;
+    padding: 0 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    outline: none;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+    transition: border-color 0.15s ease;
+  }
+
+  .search-bar::placeholder {
+    color: rgba(43,43,43,0.3);
+  }
+
+  .search-bar:focus {
+    border-color: rgba(43,43,43,0.35);
+  }
+
+  /* ===== FILE LIST =====
+     Clean text rows. Title + date. Hairline separators. */
+
+  .file-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Subtle scrollbar */
+  .file-list::-webkit-scrollbar { width: 5px; }
+  .file-list::-webkit-scrollbar-track { background: transparent; }
+  .file-list::-webkit-scrollbar-thumb {
+    background: rgba(43,43,43,0.10);
+    border-radius: 3px;
+  }
+  .file-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(43,43,43,0.20);
+  }
+
+  .file-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(43,43,43,0.06);
+    cursor: pointer;
+    transition: background 0.1s ease;
+    gap: 16px;
+  }
+
+  .file-row:hover {
+    background: rgba(43,43,43,0.02);
+  }
+
+  .file-row:last-child {
+    border-bottom: none;
+  }
+
+  .file-title {
+    font-family: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.35;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-date {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-light);
+    opacity: 0.55;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* ===== NAV HINT =====
+     Subtle chevron at right edge — hints at Reader (Screen 3).
+     Appears on hover. */
+
+  .nav-hint {
+    position: absolute;
+    right: 0;
+    top: 44px;
+    bottom: 0;
+    width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 6;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .window:hover .nav-hint {
+    opacity: 1;
+  }
+
+  .nav-hint-arrow {
+    font-size: 18px;
+    color: var(--ink);
+    opacity: 0.14;
+    transition: opacity 0.15s ease;
+    user-select: none;
+    font-family: -apple-system, sans-serif;
+  }
+
+  .nav-hint:hover .nav-hint-arrow {
+    opacity: 0.32;
+  }
+
+  .nav-hint-label {
+    position: absolute;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--ink);
+    opacity: 0;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+  }
+
+  .nav-hint:hover .nav-hint-label {
+    opacity: 0.3;
+  }
+
+  /* ===== RESPONSIVE ===== */
+
+  @media (max-width: 720px) {
+    .window { width: 95vw; min-width: 360px; }
+    .content-area { padding: 14px 16px 0 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <div class="traffic-light tl-close"></div>
+      <div class="traffic-light tl-min"></div>
+      <div class="traffic-light tl-max"></div>
+    </div>
+    <span class="titlebar-text">Copysight</span>
+  </div>
+
+  <!-- Navigation hint: swipe/arrow right → Reader -->
+  <div class="nav-hint">
+    <span class="nav-hint-arrow">&#x203A;</span>
+    <span class="nav-hint-label">Reader</span>
+  </div>
+
+  <div class="main">
+    <!-- Sidebar: age-based folder tabs -->
+    <nav class="sidebar">
+      <div class="tab tab-fresh active"><span>Fresh</span></div>
+      <div class="tab tab-recent"><span>Recent</span></div>
+      <div class="tab tab-settled"><span>Settled</span></div>
+      <div class="tab tab-gold"><span>Gold</span></div>
+    </nav>
+
+    <div class="content-area">
+      <!-- Search bar: thin outline, zero 3D -->
+      <input type="text" class="search-bar" placeholder="Search...">
+
+      <!-- File list: title + date, hairline separators -->
+      <div class="file-list">
+        <div class="file-row">
+          <span class="file-title">Local AI inference and the future of desktop tools</span>
+          <span class="file-date">01 Mar</span>
+        </div>
+        <div class="file-row">
+          <span class="file-title">Why journalists need personal knowledge systems</span>
+          <span class="file-date">28 Feb</span>
+        </div>
+        <div class="file-row">
+          <span class="file-title">The privacy argument for on-device processing</span>
+          <span class="file-date">25 Feb</span>
+        </div>
+        <div class="file-row">
+          <span class="file-title">Building tools that respect your attention</span>
+          <span class="file-date">22 Feb</span>
+        </div>
+        <div class="file-row">
+          <span class="file-title">From video to insight: the two-minute briefing</span>
+          <span class="file-date">19 Feb</span>
+        </div>
+        <div class="file-row">
+          <span class="file-title">Editorial structure in AI output design</span>
+          <span class="file-date">15 Feb</span>
+        </div>
+        <div class="file-row">
+          <span class="file-title">Zettelkasten principles for digital archives</span>
+          <span class="file-date">11 Feb</span>
+        </div>
+        <div class="file-row">
+          <span class="file-title">The filing cabinet metaphor in modern UX</span>
+          <span class="file-date">07 Feb</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

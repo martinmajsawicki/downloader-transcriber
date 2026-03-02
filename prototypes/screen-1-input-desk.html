@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Copysight — Screen 1: The Input Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Sans+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --base:      #F7E9C1;
+    --red:       #D1344B;
+    --red-dark:  #8B1E30;
+    --red-mid:   #A82A3D;
+    --red-light: #E8546A;
+    --red-hot:   #F07080;
+    --ink:       #2B2B2B;
+    --ink-light: #4A4A4A;
+    --gear-color:#C4AA78;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #D5CEC4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+
+  /* ===== WINDOW =====
+     Multi-layer manila paper: base gradient + warm color spots + edge vignette.
+     Two pseudo-elements for grain textures at different scales. */
+
+  .window {
+    width: 680px;
+    border-radius: 10px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.5) inset,
+      0 30px 80px rgba(0,0,0,0.28),
+      0 4px 12px rgba(0,0,0,0.18),
+      inset 0 0 60px rgba(140,115,65,0.06);
+    overflow: hidden;
+    position: relative;
+
+    /* Layered manila paper background */
+    background:
+      /* Edge vignette — slight darkening at edges */
+      radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(150,125,70,0.09) 100%),
+      /* Warm spot: upper-left (lighter, sun-bleached) */
+      radial-gradient(ellipse at 22% 28%, rgba(252,225,165,0.22), transparent 55%),
+      /* Warm spot: center-right (natural color variation) */
+      radial-gradient(ellipse at 78% 55%, rgba(245,215,148,0.16), transparent 50%),
+      /* Warm spot: lower area */
+      radial-gradient(ellipse at 45% 82%, rgba(238,208,135,0.10), transparent 45%),
+      /* Cool spot: subtle blue-ish tint in shadow areas */
+      radial-gradient(ellipse at 65% 18%, rgba(210,200,175,0.08), transparent 40%),
+      /* Base gradient: not flat — slight diagonal warm-to-cool shift */
+      linear-gradient(172deg, #FAF0CC 0%, var(--base) 30%, #F5E2B2 60%, #F2DCA8 90%, #EEDAA2 100%);
+  }
+
+  /* Fine paper grain — high-frequency noise, simulates fiber close-up */
+  .window::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='6' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.065'/%3E%3C/svg%3E");
+    background-size: 180px;
+    pointer-events: none;
+    border-radius: 10px;
+    z-index: 3;
+    mix-blend-mode: multiply;
+  }
+
+  /* Coarser paper texture — low-frequency variation, simulates paper pulp */
+  .window::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.35' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 280px;
+    pointer-events: none;
+    border-radius: 10px;
+    z-index: 4;
+    mix-blend-mode: multiply;
+  }
+
+  /* ===== TITLEBAR ===== */
+
+  .titlebar {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
+    border-bottom: 1px solid rgba(0,0,0,0.07);
+    z-index: 5;
+  }
+
+  .traffic-lights { display: flex; gap: 8px; }
+
+  .traffic-light {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(0,0,0,0.15);
+  }
+  .tl-close { background: linear-gradient(180deg, #FF6058, #E14640); }
+  .tl-min   { background: linear-gradient(180deg, #FFC02E, #DFA524); }
+  .tl-max   { background: linear-gradient(180deg, #2ACB42, #1FA634); }
+
+  .titlebar-text {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink); opacity: 0.4;
+  }
+
+  /* ===== CONTENT ===== */
+
+  .content {
+    padding: 48px 60px 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    min-height: 340px;
+    z-index: 2;
+  }
+
+  /* ===== WATERCOLOR GEARS =====
+     Static, blended into paper via mix-blend-mode.
+     Warm sepia tone, soft blur, soaked into the surface. */
+
+  .watercolor-gears {
+    position: absolute;
+    top: 44px; /* below titlebar */
+    left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .watercolor-gears svg {
+    position: absolute;
+    fill: var(--gear-color);
+    mix-blend-mode: multiply;
+    opacity: 0;
+  }
+
+  /* Right: large gear — the dominant stain */
+  .wg-r1 {
+    width: 170px; height: 170px;
+    top: 10px; right: 30px;
+    opacity: 0.14 !important;
+    filter: blur(2.5px);
+  }
+
+  /* Right: small gear — meshes with large */
+  .wg-r2 {
+    width: 80px; height: 80px;
+    top: 12px; right: 8px;
+    opacity: 0.11 !important;
+    filter: blur(2px);
+  }
+
+  /* Left: single gear — fainter echo */
+  .wg-l1 {
+    width: 110px; height: 110px;
+    top: 30px; left: 16px;
+    opacity: 0.08 !important;
+    filter: blur(3px);
+  }
+
+  /* ===== DESK GROUP =====
+     Centers title + slot as a visual unit.
+     Button overflows to the right. */
+
+  .desk-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: fit-content; /* sizes to title width */
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+  }
+
+  /* ===== BRAND TITLE =====
+     Playfair Display Black — editorial serif masthead.
+     Matches "high-end literary magazine" from brand guidelines.
+     High-contrast transitional serif with ink-pressed feel. */
+
+  .brand-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 900;
+    font-size: 54px;
+    letter-spacing: 5px;
+    color: var(--ink);
+    text-transform: uppercase;
+    margin-bottom: 48px;
+    user-select: none;
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.25),
+      0 -0.5px 0 rgba(0,0,0,0.08);
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ===== INPUT ROW =====
+     Slot fills desk-group width (= title width).
+     Button hangs off the right edge, absolutely positioned. */
+
+  .input-row {
+    position: relative;
+    z-index: 2;
+    width: 100%; /* fills desk-group = title width */
+    display: flex;
+    justify-content: flex-end;
+    overflow: visible;
+  }
+
+  /* URL Slot — same length as COPYSIGHT title. */
+  .url-slot {
+    width: 100%;
+    flex: none;
+    height: 40px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.055) 0%, rgba(0,0,0,0.02) 100%);
+    border-radius: 20px;
+    border: none;
+    outline: none;
+    box-shadow:
+      inset 0 3px 8px rgba(0,0,0,0.13),
+      inset 0 1px 2px rgba(0,0,0,0.09),
+      inset 0 0 0 0.5px rgba(0,0,0,0.05),
+      0 1px 0 rgba(255,255,255,0.5);
+    padding: 0 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    color: var(--ink);
+    caret-color: var(--red);
+    transition: box-shadow 0.2s ease;
+  }
+
+  .url-slot::placeholder {
+    color: rgba(43,43,43,0.25);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .url-slot:focus {
+    box-shadow:
+      inset 0 3px 8px rgba(0,0,0,0.15),
+      inset 0 1px 2px rgba(0,0,0,0.11),
+      inset 0 0 0 0.5px rgba(0,0,0,0.07),
+      0 0 0 3px rgba(209,52,75,0.1),
+      0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  /* ===== NIPPLE BUTTON ===== */
+
+  .nipple-btn {
+    width: 76px; height: 76px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    /* Positioned absolutely: hangs off the right edge of the slot */
+    position: absolute;
+    left: calc(100% + 20px);
+    top: 50%;
+    transform: translateY(-50%);
+
+    background:
+      radial-gradient(circle at 36% 30%,
+        var(--red-hot) 0%,
+        var(--red-light) 16%,
+        var(--red) 38%,
+        var(--red-mid) 62%,
+        var(--red-dark) 88%,
+        #5A1018 100%
+      );
+
+    box-shadow:
+      0 4px 0 #6A1A28,
+      0 5px 2px rgba(90,16,24,0.7),
+      0 10px 24px rgba(0,0,0,0.28),
+      0 3px 8px rgba(0,0,0,0.14),
+      inset 0 2px 5px rgba(255,255,255,0.22),
+      inset 0 -4px 10px rgba(0,0,0,0.3),
+      inset 0 0 0 1px rgba(255,255,255,0.05);
+
+    transition: all 0.08s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Gloss crescent */
+  .nipple-btn::before {
+    content: '';
+    position: absolute;
+    top: 8px; left: 12px;
+    width: 30px; height: 18px;
+    background: radial-gradient(ellipse at 50% 35%,
+      rgba(255,255,255,0.5) 0%,
+      rgba(255,255,255,0.15) 40%,
+      rgba(255,255,255,0) 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    transform: rotate(-18deg);
+  }
+
+  /* Specular pinpoint */
+  .nipple-btn::after {
+    content: '';
+    position: absolute;
+    top: 14px; left: 20px;
+    width: 10px; height: 6px;
+    background: radial-gradient(ellipse,
+      rgba(255,255,255,0.6) 0%,
+      rgba(255,255,255,0) 100%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(0.8px);
+  }
+
+  .nipple-btn:active {
+    transform: translateY(calc(-50% + 3px));
+    box-shadow:
+      0 1px 0 #6A1A28,
+      0 2px 1px rgba(90,16,24,0.6),
+      0 4px 10px rgba(0,0,0,0.2),
+      inset 0 2px 4px rgba(255,255,255,0.15),
+      inset 0 -2px 6px rgba(0,0,0,0.35);
+  }
+
+  .nipple-btn:hover {
+    background:
+      radial-gradient(circle at 36% 30%,
+        #F58898 0%, #EE6478 16%, #D83E55 38%,
+        var(--red-mid) 62%, var(--red-dark) 88%, #5A1018 100%
+      );
+  }
+
+  /* ===== STAMP AREA =====
+     Stamps appear BELOW the URL slot, stacking vertically.
+     The input desk (title + slot + button) stays visible.
+     Matches inspiration layout: stamps form a vertical list
+     in the lower portion of the content area. */
+
+  .stamp-area {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-height: 0;
+    z-index: 2;
+    width: 100%;
+  }
+
+  .stamp-line {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--ink);
+    opacity: 0;
+    transform: scale(1.15);
+    /* Slight ink-bleed texture */
+    text-shadow:
+      0 0 1.5px rgba(43,43,43,0.15),
+      0.5px 0.3px 0 rgba(43,43,43,0.05);
+  }
+
+  .stamp-line.stamped {
+    animation: stamp-hit 0.14s ease-out forwards;
+  }
+
+  /* Each stamp gets a slightly different rotation for hand-stamped feel */
+  .stamp-line:nth-child(1).stamped { --rot: -0.4deg; }
+  .stamp-line:nth-child(2).stamped { --rot: 0.6deg; }
+  .stamp-line:nth-child(3).stamped { --rot: -0.2deg; }
+  .stamp-line:nth-child(4).stamped { --rot: 0.3deg; }
+
+  @keyframes stamp-hit {
+    0%   { opacity: 0; transform: scale(1.18) rotate(calc(var(--rot, 0deg) - 0.5deg)); }
+    25%  { opacity: 0.9; transform: scale(0.97) rotate(calc(var(--rot, 0deg) + 0.3deg)); }
+    55%  { transform: scale(1.01) rotate(var(--rot, 0deg)); }
+    100% { opacity: 0.75; transform: scale(1) rotate(var(--rot, 0deg)); }
+  }
+
+  /* ===== SOUND WAVE ICON =====
+     Small animated waveform in bottom-right during processing.
+     Subtle, monospace feel. Fades in/out with processing state. */
+
+  .sound-wave {
+    position: absolute;
+    bottom: 16px;
+    right: 20px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 16px;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: 5;
+  }
+
+  .sound-wave.active {
+    opacity: 0.2;
+  }
+
+  .sound-wave-bar {
+    width: 2px;
+    background: var(--ink);
+    border-radius: 1px;
+    animation: wave-pulse 1.2s ease-in-out infinite;
+  }
+
+  .sound-wave-bar:nth-child(1) { height: 5px; animation-delay: 0s; }
+  .sound-wave-bar:nth-child(2) { height: 10px; animation-delay: 0.15s; }
+  .sound-wave-bar:nth-child(3) { height: 16px; animation-delay: 0.3s; }
+  .sound-wave-bar:nth-child(4) { height: 8px; animation-delay: 0.45s; }
+  .sound-wave-bar:nth-child(5) { height: 12px; animation-delay: 0.6s; }
+
+  @keyframes wave-pulse {
+    0%, 100% { transform: scaleY(0.4); }
+    50%      { transform: scaleY(1); }
+  }
+
+  /* ===== STATUS ===== */
+
+  .status-area {
+    margin-top: 20px;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
+  .status-msg {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .status-msg.visible { opacity: 0.45; }
+
+  @media (max-width: 720px) {
+    .window { width: 95vw; min-width: 360px; }
+    .brand-title { font-size: 36px; letter-spacing: 3px; }
+    .nipple-btn { width: 60px; height: 60px; }
+    .content { padding: 36px 24px 44px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <div class="traffic-light tl-close"></div>
+      <div class="traffic-light tl-min"></div>
+      <div class="traffic-light tl-max"></div>
+    </div>
+    <span class="titlebar-text">Copysight</span>
+  </div>
+
+  <!-- Watercolor gear stains — static, blended into paper -->
+  <div class="watercolor-gears">
+    <!-- Right: large gear -->
+    <svg class="wg-r1" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <path d="M66,18 L66,8 L76,8 L76,18 C81,18.6 85.5,20.5 89.5,23 L96,16 L104,24 L97,31 C99.5,35 101.3,39.5 102,44 L112,44 L112,54 L102,54 C101.3,58.5 99.5,63 97,67 L104,74 L96,82 L89.5,75 C85.5,77.5 81,79.4 76,80 L76,90 L66,90 L66,80 C61,79.4 56.5,77.5 52.5,75 L46,82 L38,74 L45,67 C42.5,63 40.7,58.5 40,54 L30,54 L30,44 L40,44 C40.7,39.5 42.5,35 45,31 L38,24 L46,16 L52.5,23 C56.5,20.5 61,18.6 66,18 Z M71,34 A17,17 0 1,0 71,66 A17,17 0 1,0 71,34 Z"/>
+    </svg>
+    <!-- Right: small gear -->
+    <svg class="wg-r2" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28,8 L28,3 L34,3 L34,8 C36.5,8.3 38.8,9.2 40.7,10.5 L44,7 L49,12 L45.7,15.3 C47,17.2 47.8,19.5 48.1,22 L53,22 L53,28 L48.1,28 C47.8,30.5 47,32.8 45.7,34.7 L49,38 L44,43 L40.7,39.5 C38.8,40.8 36.5,41.7 34,42 L34,47 L28,47 L28,42 C25.5,41.7 23.2,40.8 21.3,39.5 L18,43 L13,38 L16.3,34.7 C15,32.8 14.2,30.5 13.9,28 L9,28 L9,22 L13.9,22 C14.2,19.5 15,17.2 16.3,15.3 L13,12 L18,7 L21.3,10.5 C23.2,9.2 25.5,8.3 28,8 Z M31,18 A8,8 0 1,0 31,34 A8,8 0 1,0 31,18 Z"/>
+    </svg>
+    <!-- Left: single gear, fainter -->
+    <svg class="wg-l1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M46,14 L46,6 L54,6 L54,14 C58,14.4 61.5,16 64.5,18 L70,12 L76,18 L70,24 C72,27 73.5,30.5 74,34 L82,34 L82,42 L74,42 C73.5,45.5 72,49 70,52 L76,58 L70,64 L64.5,58 C61.5,60 58,61.5 54,62 L54,70 L46,70 L46,62 C42,61.5 38.5,60 35.5,58 L30,64 L24,58 L30,52 C28,49 26.5,45.5 26,42 L18,42 L18,34 L26,34 C26.5,30.5 28,27 30,24 L24,18 L30,12 L35.5,18 C38.5,16 42,14.4 46,14 Z M50,28 A10,10 0 1,0 50,48 A10,10 0 1,0 50,28 Z"/>
+    </svg>
+  </div>
+
+  <div class="content">
+    <!-- Alignment wrapper: title + slot share left/right edges.
+         Button hangs to the right beyond the title boundary.
+         The whole group is centered in the window. -->
+    <div class="desk-group" id="deskGroup">
+      <h1 class="brand-title" id="brandTitle">COPYSIGHT</h1>
+
+      <div class="input-row">
+        <input type="url" class="url-slot" id="urlInput"
+          placeholder="" autocomplete="off" spellcheck="false">
+        <button class="nipple-btn" id="goBtn" aria-label="Process video"></button>
+      </div>
+    </div>
+
+    <!-- Stamp area: appears BELOW the input desk.
+         Each stamp stacks vertically, like rubber-stamped lines on paper.
+         The URL slot and title remain visible during stamping. -->
+    <div class="stamp-area" id="stampArea"></div>
+
+    <!-- Sound wave icon — visible during processing -->
+    <div class="sound-wave" id="soundWave">
+      <div class="sound-wave-bar"></div>
+      <div class="sound-wave-bar"></div>
+      <div class="sound-wave-bar"></div>
+      <div class="sound-wave-bar"></div>
+      <div class="sound-wave-bar"></div>
+    </div>
+
+    <div class="status-area">
+      <span class="status-msg" id="statusMsg"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const urlInput = document.getElementById('urlInput');
+  const goBtn = document.getElementById('goBtn');
+  const stampArea = document.getElementById('stampArea');
+  const statusMsg = document.getElementById('statusMsg');
+  const soundWave = document.getElementById('soundWave');
+
+  const stamps = ['Connecting...', 'Downloading...', 'Transcribing...', 'Analyzing...'];
+  let isProcessing = false;
+
+  goBtn.addEventListener('click', function() {
+    const url = urlInput.value.trim();
+    if (!url) {
+      urlInput.style.animation = 'none';
+      urlInput.offsetHeight;
+      urlInput.style.animation = 'shake 0.4s ease';
+      return;
+    }
+    if (isProcessing) return;
+    isProcessing = true;
+    statusMsg.classList.remove('visible');
+    statusMsg.textContent = '';
+    soundWave.classList.add('active');
+    // Clear previous stamps safely
+    while (stampArea.firstChild) {
+      stampArea.removeChild(stampArea.firstChild);
+    }
+    runStampSequence(0);
+  });
+
+  urlInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') goBtn.click();
+  });
+
+  function runStampSequence(index) {
+    if (index >= stamps.length) {
+      setTimeout(function() {
+        soundWave.classList.remove('active');
+        statusMsg.textContent = 'Analysis complete.';
+        statusMsg.classList.add('visible');
+        isProcessing = false;
+      }, 600);
+      return;
+    }
+
+    var line = document.createElement('div');
+    line.className = 'stamp-line';
+    line.textContent = stamps[index];
+    stampArea.appendChild(line);
+
+    // Trigger stamp animation after DOM paint
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        line.classList.add('stamped');
+      });
+    });
+
+    setTimeout(function() {
+      runStampSequence(index + 1);
+    }, 1100);
+  }
+
+  // Shake animation for empty input
+  var s = document.createElement('style');
+  s.textContent = '@keyframes shake {' +
+    '0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}' +
+    '40%{transform:translateX(5px)} 60%{transform:translateX(-4px)}' +
+    '80%{transform:translateX(3px)}}';
+  document.head.appendChild(s);
+</script>
+
+</body>
+</html>
