@@ -35,6 +35,7 @@ const settingsTrigger = document.getElementById('settingsTrigger');
 const settingsOverlay = document.getElementById('settingsOverlay');
 const settingsPanel = document.getElementById('settingsPanel');
 const settingsDone = document.getElementById('settingsDone');
+const videoMeta = document.getElementById('videoMeta');
 const dateStamp = document.getElementById('dateStamp');
 const readerArticle = document.getElementById('readerArticle');
 const newBtn = document.getElementById('newBtn');
@@ -112,6 +113,10 @@ function stopPipeline() {
   }
   stopDots();
   soundWave.classList.remove('active');
+  goBtn.classList.remove('busy');
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.cancel_pipeline().catch(function() {});
+  }
 }
 
 goBtn.addEventListener('click', startPipeline);
@@ -127,6 +132,10 @@ function startPipeline() {
     setTimeout(function() { urlInput.classList.remove('shake'); }, 500);
     return;
   }
+
+  // Prevent double-start
+  if (goBtn.classList.contains('busy')) return;
+  goBtn.classList.add('busy');
 
   // Clear previous stamps
   while (stampArea.firstChild) {
@@ -152,10 +161,12 @@ function startPipeline() {
       } else {
         queueStampTypewriter('Error: ' + (result && result.reason || 'Unknown'));
         soundWave.classList.remove('active');
+        goBtn.classList.remove('busy');
       }
     }).catch(function() {
       queueStampTypewriter('Error: bridge failure');
       soundWave.classList.remove('active');
+      goBtn.classList.remove('busy');
     });
   } else {
     // Fallback for testing without pywebview
@@ -198,11 +209,12 @@ function pollPipelineStatus() {
       clearInterval(pollInterval);
       pollInterval = null;
       soundWave.classList.remove('active');
+      goBtn.classList.remove('busy');
 
       // Fetch result and transition to reader
       window.pywebview.api.get_result().then(function(result) {
         if (result) {
-          populateReader(result.analysis || result.transcript || '');
+          populateReader(result.analysis || result.transcript || '', result.meta);
           setTimeout(function() {
             fadeStamps();
             setTimeout(function() {
@@ -213,10 +225,11 @@ function pollPipelineStatus() {
       }).catch(function() {
         queueStampTypewriter('Error: could not fetch result');
       });
-    } else if (status.step === 'error') {
+    } else if (status.step === 'error' || status.step === 'idle') {
       clearInterval(pollInterval);
       pollInterval = null;
       soundWave.classList.remove('active');
+      goBtn.classList.remove('busy');
     }
   }).catch(function() {
     stopPipeline();
@@ -342,7 +355,7 @@ function fadeStamps() {
 //  READER
 // ═══════════════════════════════════════
 
-function populateReader(text) {
+function populateReader(text, meta) {
   if (!text) return;
 
   // Store raw markdown for copy/export
@@ -355,6 +368,28 @@ function populateReader(text) {
   var month = months[now.getMonth()];
   var year = now.getFullYear();
   dateStamp.textContent = day + ' ' + month + ' ' + year;
+
+  // Video metadata
+  while (videoMeta.firstChild) {
+    videoMeta.removeChild(videoMeta.firstChild);
+  }
+  if (meta && meta.title) {
+    var titleEl = document.createElement('div');
+    titleEl.className = 'meta-title';
+    titleEl.textContent = meta.title;
+    videoMeta.appendChild(titleEl);
+
+    var details = [];
+    if (meta.channel) details.push(meta.channel);
+    if (meta.duration) details.push(meta.duration);
+    if (meta.source) details.push(meta.source);
+    if (details.length > 0) {
+      var detailEl = document.createElement('div');
+      detailEl.className = 'meta-detail';
+      detailEl.textContent = details.join(' · ');
+      videoMeta.appendChild(detailEl);
+    }
+  }
 
   // Clear
   while (readerArticle.firstChild) {
@@ -536,13 +571,10 @@ function copyToClipboard(text) {
 }
 
 exportBtn.addEventListener('click', function() {
-  var text = getReaderText();
-  if (!text) return;
-
   if (window.pywebview && window.pywebview.api) {
-    window.pywebview.api.export_txt(text, '_analiza').then(function(result) {
-      if (result && result.exported) {
-        showButtonSuccess(exportBtn, result.filename);
+    window.pywebview.api.reveal_in_finder().then(function(result) {
+      if (result && result.revealed) {
+        showButtonSuccess(exportBtn, 'Opened');
       }
     }).catch(function() {});
   }
@@ -602,6 +634,18 @@ function loadLibrary() {
     libraryCache = [];
     renderLibrary([]);
   });
+
+  // Update tab counts
+  window.pywebview.api.get_library_counts().then(function(counts) {
+    if (!counts) return;
+    document.querySelectorAll('.sidebar .tab').forEach(function(tab) {
+      var bracket = tab.getAttribute('data-bracket');
+      var count = counts[bracket] || 0;
+      var span = tab.querySelector('span');
+      var label = bracket.charAt(0).toUpperCase() + bracket.slice(1);
+      span.textContent = count > 0 ? label + ' ' + count : label;
+    });
+  }).catch(function() {});
 }
 
 function renderLibrary(entries) {
@@ -642,6 +686,12 @@ function renderLibrary(entries) {
     date.textContent = entry.date_str;
 
     row.appendChild(title);
+    if (entry.kind === 'transcript') {
+      var badge = document.createElement('span');
+      badge.className = 'file-badge';
+      badge.textContent = 'T';
+      row.appendChild(badge);
+    }
     row.appendChild(date);
 
     row.addEventListener('click', function() {

@@ -3,6 +3,7 @@ pywebview>=5.0
 yt-dlp>=2025.1.0
 mlx-whisper>=0.4.0
 openai>=1.0.0
+httpx>=0.27.0
 
 # Build (icon generation)
 Pillow>=10.0.0

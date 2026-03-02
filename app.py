@@ -28,6 +28,7 @@ import re
 import time
 from datetime import datetime
 
+import subprocess
 import downloader
 import transcriber
 import analyzer
@@ -99,6 +100,7 @@ class Api:
 
     def __init__(self):
         self._lock = threading.Lock()
+        self._cancel = threading.Event()
         self._pipeline_status = {
             "step": "idle",
             "stamps": [],
@@ -109,6 +111,8 @@ class Api:
         self._current_transcript = ""
         self._current_analysis = ""
         self._last_mp3 = ""
+        self._video_meta = {}
+        self._current_entry_path = ""
         self._is_processing = False
 
     # ── Pipeline ──
@@ -126,6 +130,7 @@ class Api:
                 return {"started": False, "reason": "No URL"}
 
             self._is_processing = True
+            self._cancel.clear()
             self._pipeline_status = {
                 "step": "connecting",
                 "stamps": [],
@@ -135,6 +140,8 @@ class Api:
             }
             self._current_transcript = ""
             self._current_analysis = ""
+            self._video_meta = {}
+            self._current_entry_path = ""
 
         settings = self._load_prefs()
 
@@ -154,13 +161,13 @@ class Api:
                     if msg:
                         download_log.append(str(msg))
 
-                mp3 = downloader.download_audio_as_mp3(
+                dl_result = downloader.download_audio_as_mp3(
                     url,
                     output_path=DOWNLOADS_DIR,
                     log_fn=on_log,
                     progress_fn=on_progress,
                 )
-                if not mp3:
+                if not dl_result:
                     # Find most informative log entry
                     detail = "Unknown error"
                     for entry in reversed(download_log):
@@ -172,8 +179,16 @@ class Api:
                     self._set_status(step="error", error=detail)
                     self._add_stamp(f"Error: {detail[:80]}")
                     return
+                mp3 = dl_result["mp3"]
                 self._last_mp3 = mp3
+                self._video_meta = dl_result.get("meta", {})
                 self._add_stamp("Downloading... done.")
+
+                if self._cancel.is_set():
+                    self._add_stamp("Cancelled.")
+                    self._set_status(step="idle")
+                    return
+
                 self._set_status(step="transcribing")
 
                 # Step 2: Transcribe
@@ -203,10 +218,16 @@ class Api:
                 self._current_transcript = text
                 self._add_stamp("Transcribing... done.")
 
+                if self._cancel.is_set():
+                    self._add_stamp("Cancelled.")
+                    self._set_status(step="idle")
+                    return
+
                 # Auto-save transcript
                 txt_path = _versioned_path(mp3, output_dir=TRANSCRIPTS_DIR)
                 with open(txt_path, "w", encoding="utf-8") as f:
                     f.write(text)
+                self._current_entry_path = txt_path
 
                 # Step 3: Analyze (if API key available)
                 api_key = vault.load_key()
@@ -221,10 +242,14 @@ class Api:
                     if result:
                         self._current_analysis = result
                         self._add_stamp("Analyzing... done.")
-                        # Auto-save analysis
+                        # Auto-save analysis with source header
                         path = _versioned_path(mp3, "_analiza", output_dir=ANALYSES_DIR)
                         with open(path, "w", encoding="utf-8") as f:
+                            meta = self._video_meta
+                            if meta.get("url"):
+                                f.write(f"<!-- source: {meta['url']} -->\n")
                             f.write(result)
+                        self._current_entry_path = path
                     else:
                         self._add_stamp("Analysis: API error (transcript saved)")
                 else:
@@ -250,11 +275,17 @@ class Api:
             return status
 
     def get_result(self):
-        """Returns the current transcript and/or analysis text."""
+        """Returns the current transcript and/or analysis text + metadata."""
         return {
             "transcript": self._current_transcript,
             "analysis": self._current_analysis,
+            "meta": self._video_meta,
         }
+
+    def cancel_pipeline(self):
+        """Request cancellation of the running pipeline."""
+        self._cancel.set()
+        return {"cancelled": True}
 
     def _add_stamp(self, text):
         with self._lock:
@@ -315,58 +346,79 @@ class Api:
     # ── Library ──
 
     def get_library(self, bracket="fresh"):
-        """Scan analyses/ folder, filter by age bracket.
-        Returns list of {title, date_str, path, bracket}.
+        """Scan analyses/ and transcripts/ folders, filter by age bracket.
+        Returns list of {title, date_str, path, bracket, kind}.
+        kind: "analysis" or "transcript".
         """
         entries = []
-        if not os.path.exists(ANALYSES_DIR):
-            return entries
-
         now = datetime.now()
-        for filename in os.listdir(ANALYSES_DIR):
-            if not filename.endswith(".txt"):
+
+        # Scan both directories
+        dirs = [
+            (ANALYSES_DIR, "analysis"),
+            (TRANSCRIPTS_DIR, "transcript"),
+        ]
+        # Track analysis base names to avoid duplicating transcripts
+        analysis_bases = set()
+
+        for scan_dir, kind in dirs:
+            if not os.path.exists(scan_dir):
                 continue
-            filepath = os.path.join(ANALYSES_DIR, filename)
-            try:
-                mtime = datetime.fromtimestamp(os.stat(filepath).st_mtime)
-            except OSError:
-                continue
+            for filename in os.listdir(scan_dir):
+                if not filename.endswith(".txt"):
+                    continue
+                filepath = os.path.join(scan_dir, filename)
+                try:
+                    mtime = datetime.fromtimestamp(os.stat(filepath).st_mtime)
+                except OSError:
+                    continue
 
-            age_days = (now - mtime).days
-            file_bracket = (
-                "fresh" if age_days <= 7
-                else "recent" if age_days <= 30
-                else "settled" if age_days <= 180
-                else "gold"
-            )
+                # Parse base name (video title without suffix/timestamp)
+                base = filename
+                base = re.sub(r"_analiza_\d{8}_\d{4}\.txt$", "", base)
+                base = re.sub(r"_\d{8}_\d{4}\.txt$", "", base)
 
-            if bracket and file_bracket != bracket:
-                continue
+                if kind == "analysis":
+                    analysis_bases.add(base)
+                elif kind == "transcript" and base in analysis_bases:
+                    # Skip transcript if analysis exists for same video
+                    continue
 
-            # Parse title from filename
-            title = filename
-            title = re.sub(r"_analiza_\d{8}_\d{4}\.txt$", "", title)
-            title = re.sub(r"_\d{8}_\d{4}\.txt$", "", title)
-            title = title.replace("_", " ")
+                age_days = (now - mtime).days
+                file_bracket = (
+                    "fresh" if age_days <= 7
+                    else "recent" if age_days <= 30
+                    else "settled" if age_days <= 180
+                    else "gold"
+                )
 
-            entries.append({
-                "title": title,
-                "date_str": mtime.strftime("%d %b"),
-                "path": filepath,
-                "bracket": file_bracket,
-            })
+                if bracket and file_bracket != bracket:
+                    continue
+
+                title = base.replace("_", " ")
+
+                entries.append({
+                    "title": title,
+                    "date_str": mtime.strftime("%d %b"),
+                    "path": filepath,
+                    "bracket": file_bracket,
+                    "kind": kind,
+                })
 
         entries.sort(key=lambda x: os.stat(x["path"]).st_mtime, reverse=True)
         return entries
 
     def get_entry(self, path):
-        """Read a library entry file and return its content."""
+        """Read a library entry file and return its content.
+        Also sets current entry path for export context.
+        """
         try:
             # Security: only allow reading from ANALYSES_DIR or TRANSCRIPTS_DIR
             real_path = os.path.realpath(path)
             allowed = [os.path.realpath(ANALYSES_DIR), os.path.realpath(TRANSCRIPTS_DIR)]
             if not any(real_path.startswith(d) for d in allowed):
                 return {"error": "Access denied"}
+            self._current_entry_path = path
             with open(path, "r", encoding="utf-8") as f:
                 return {"content": f.read()}
         except (OSError, IOError) as exc:
@@ -374,15 +426,23 @@ class Api:
 
     # ── Actions ──
 
-    def export_txt(self, text, suffix=""):
-        """Export text to a versioned .txt file."""
-        if not text or not self._last_mp3:
-            return {"exported": False, "error": "Nothing to export"}
-        out_dir = ANALYSES_DIR if suffix else TRANSCRIPTS_DIR
-        path = _versioned_path(self._last_mp3, suffix, output_dir=out_dir)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(text)
-        return {"exported": True, "filename": os.path.basename(path)}
+    def reveal_in_finder(self):
+        """Open Finder with the current entry file selected."""
+        path = self._current_entry_path
+        if not path or not os.path.exists(path):
+            return {"revealed": False, "error": "No saved file"}
+        subprocess.Popen(["open", "-R", path])
+        return {"revealed": True, "filename": os.path.basename(path)}
+
+    def get_library_counts(self):
+        """Return entry count per bracket for all tabs."""
+        counts = {"fresh": 0, "recent": 0, "settled": 0, "gold": 0}
+        all_entries = self.get_library(bracket=None)
+        for entry in all_entries:
+            b = entry.get("bracket")
+            if b in counts:
+                counts[b] += 1
+        return counts
 
     def has_api_key(self):
         """Check if an API key is saved (for first-run detection)."""

@@ -295,6 +295,17 @@ body {
     );
 }
 
+.nipple-btn.busy {
+  opacity: 0.5;
+  cursor: not-allowed;
+  animation: pulse-busy 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-busy {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.35; }
+}
+
 /* Stamp area */
 .stamp-area {
   margin-top: 32px;
@@ -464,6 +475,32 @@ body {
 .reader-content::-webkit-scrollbar-track { background: transparent; }
 .reader-content::-webkit-scrollbar-thumb { background: rgba(43,43,43,0.18); border-radius: 3px; }
 .reader-content::-webkit-scrollbar-thumb:hover { background: rgba(43,43,43,0.32); }
+
+/* Video metadata — source info above date stamp */
+.video-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink);
+  opacity: 0.35;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  max-width: 540px;
+}
+
+.video-meta:empty { display: none; }
+
+.video-meta .meta-title {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  opacity: 1;
+  color: var(--ink);
+}
+
+.video-meta .meta-detail {
+  font-size: 10px;
+  letter-spacing: 0.3px;
+}
 
 /* Date stamp */
 .date-stamp {
@@ -713,6 +750,19 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.file-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.3;
+  border: 1px solid rgba(43,43,43,0.15);
+  border-radius: 3px;
+  padding: 1px 4px;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
 }
 
 .file-date {

@@ -17,16 +17,39 @@ def _normalize_youtube_url(url):
     return url
 
 
+def _format_duration(seconds):
+    """Format seconds as M:SS or H:MM:SS."""
+    if not seconds or seconds <= 0:
+        return ""
+    seconds = int(seconds)
+    if seconds >= 3600:
+        h = seconds // 3600
+        m = (seconds % 3600) // 60
+        s = seconds % 60
+        return f"{h}:{m:02d}:{s:02d}"
+    m = seconds // 60
+    s = seconds % 60
+    return f"{m}:{s:02d}"
+
+
+def _extract_meta(info, url):
+    """Extract generic metadata dict from yt-dlp info (works for any source)."""
+    return {
+        "title": info.get("title", ""),
+        "channel": info.get("uploader") or info.get("channel") or "",
+        "duration": _format_duration(info.get("duration")),
+        "url": info.get("webpage_url") or url,
+        "source": info.get("extractor", ""),
+    }
+
+
 def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_fn=None):
     """
     Download audio from a given URL and convert it to MP3.
-    Returns the path to the downloaded MP3 file, or None on error.
+    Returns {"mp3": path, "meta": {...}} on success, or None on error.
 
-    Deduplication:
-    - If an mp3 with the same name already exists and has the same size → skip
-      download, return existing file (same content, keep newest = existing).
-    - If sizes differ (e.g. changed quality settings) → keep both, rename old
-      with timestamp suffix.
+    Meta dict contains: title, channel, duration, url, source.
+    Works with any yt-dlp supported site (YouTube, Vimeo, LinkedIn, etc.).
 
     :param progress_fn: Optional callback(percent, msg) for live progress.
                         percent: 0-100 float, msg: human-readable status string.
@@ -96,10 +119,12 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
             info['ext'] = 'mp3'
             expected_mp3 = ydl.prepare_filename(info)
 
+            meta = _extract_meta(info, url)
+
             # Step 2: If mp3 already exists → return it (same video, same file)
             if os.path.exists(expected_mp3):
                 log_fn(f"Already downloaded: {os.path.basename(expected_mp3)}")
-                return expected_mp3
+                return {"mp3": expected_mp3, "meta": meta}
 
             # Step 3: Download and convert
             error_code = ydl.download([url])
@@ -125,7 +150,7 @@ def download_audio_as_mp3(url, output_path="downloads", log_fn=print, progress_f
                 return None
 
             log_fn(f"Download complete: {mp3_path}")
-            return mp3_path
+            return {"mp3": mp3_path, "meta": meta}
 
     except Exception as e:
         log_fn(f"Error: {e}")
@@ -141,6 +166,9 @@ if __name__ == "__main__":
     url = sys.argv[1]
     result = download_audio_as_mp3(url, progress_fn=lambda pct, msg: print(f"  [{msg}]"))
     if result:
-        print(f"File: {result}")
+        print(f"File: {result['mp3']}")
+        for k, v in result['meta'].items():
+            if v:
+                print(f"  {k}: {v}")
     else:
         print("Download failed.")
