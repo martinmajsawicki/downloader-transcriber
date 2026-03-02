@@ -35,7 +35,7 @@ brew install ffmpeg
 ## Setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/martinmajsawicki/downloader-transcriber.git
 cd downloader-transcriber
 
 python -m venv venv
@@ -83,7 +83,7 @@ Model: Gemini 2.0 Flash — $0.10/$0.40 per 1M tokens. A typical video analysis 
 | Key | Action |
 |-----|--------|
 | Enter | Start pipeline (when URL is focused) |
-| ← | Reader → Library |
+| ← | Input → Library / Reader → Library |
 | → | Library → Reader |
 | Escape | Return to Input / close Settings |
 

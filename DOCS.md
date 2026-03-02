@@ -52,9 +52,9 @@ The app runs entirely on your machine. Video audio is downloaded via yt-dlp, tra
 | `transcriber.py` | Local speech-to-text | ~129 | mlx-whisper, ffprobe |
 | `analyzer.py` | LLM analysis via API | ~57 | openai SDK (OpenRouter) |
 | `vault.py` | API key storage | ~27 | (stdlib only) |
-| `ui/index.html` | SPA — 3 screens + settings overlay | ~162 | — |
-| `ui/styles.css` | Unified CSS (Minimalist Archive) | ~892 | Google Fonts CDN |
-| `ui/app.js` | Navigation, pipeline bridge, library | ~691 | pywebview bridge |
+| `ui/index.html` | SPA — 3 screens + settings overlay | ~170 | — |
+| `ui/styles.css` | Unified CSS (Minimalist Archive) | ~943 | Google Fonts CDN |
+| `ui/app.js` | Navigation, pipeline bridge, library | ~740 | pywebview bridge |
 | `build_app.sh` | macOS .app bundle builder | ~100 | iconutil (system) |
 | `build_icon.py` | App icon generator (.icns) | ~182 | Pillow |
 
@@ -163,11 +163,13 @@ Combined into one screen (`#screen-input`). The red "nipple button" triggers the
 **Element details:**
 - URL input: `IBM Plex Mono`, recessed slot with inset shadow, 400px wide
 - Brand title: `Playfair Display 900`, 54px, uppercase, letter-spacing 5.7px
+- Tagline: "From video to insights — one click" (`IBM Plex Sans 400`, 13px, opacity 0.32). Fades out when pipeline starts, returns on `← New`
 - Stamps: `IBM Plex Mono 500`, 18px, typewriter animation (see Typewriter Engine)
 - Nipple button: radial gradient red, 76px circle, 3D shadow, `position: absolute`
 - Watercolor gears: SVG paths, `mix-blend-mode: multiply`, blurred, decorative only
 - Sound wave: 5 bars, CSS animation during processing (bottom-right)
-- Settings gear: bottom-left corner, opens overlay
+- Settings gear: bottom-left corner (26px, opacity 0.35), opens overlay
+- Nav hint: left edge → Library (same pattern as Reader ↔ Library)
 
 ### Screen 3: Reader
 
@@ -177,9 +179,12 @@ Clean editorial reading experience. Content is the AI analysis parsed from markd
 - Insight titles (`**Title**`): `IBM Plex Sans 700`, 15px
 - Insight body: `Georgia`, 16px, line-height 1.72
 - Date stamp: red border, `IBM Plex Mono`, rotated -2deg
-- Action bar (bottom): `← New`, `Copy`, `Export .txt` — buttons with border, opacity 0.65
-- Scrollable content area (`.reader-content` with `min-height: 0` for flexbox overflow fix)
+- Top-right toolbar: `Copy` (raw markdown to clipboard), `Export .txt` — absolute positioned, semi-transparent manila background
+- Bottom action bar: only `← New` button
+- Scrollable content area (`.reader-content` with `flex: 1; min-height: 0; overflow-y: auto`)
 - Custom thin scrollbar (6px, subtle)
+
+**Critical CSS note:** `#screen-reader` must NOT have `position: relative` — this overrides `.screen { position: absolute; inset: 0; }` due to ID specificity, which removes the definite height and breaks flexbox scroll.
 
 ### Screen 4: Library
 
@@ -205,9 +210,10 @@ Age-based filing system. Scans `downloads/analyses/` folder via Python API.
 | From → To | Method |
 |-----------|--------|
 | Input → Stamping | Click red button / Enter key |
+| Input → Library | Arrow Left / click nav hint (left edge) |
 | Stamping → Reader | Automatic (pipeline done, 800ms delay) |
 | Reader → Library | Arrow Left / click nav hint (left edge) |
-| Library → Reader | Arrow Right / click file entry |
+| Library → Reader | Arrow Right / click nav hint (right edge) / click file entry |
 | Any → Input | Escape key / `← New` button |
 | Any → Settings | Click gear icon (⚙, bottom-left) |
 
@@ -225,7 +231,9 @@ Stamps use a character-by-character typing animation with queue management.
 | `processStampQueue()` | Dequeues next text, creates DOM element, starts typing |
 | `typeText(el, text, idx, callback)` | Types one character at a time (28-50ms per char) |
 | `startDots(el, base)` | After typing "Connecting...", cycles dots (`.` → `..` → `...`) every 380ms |
-| `stopDots()` | Clears the cycling dots interval |
+| `startStaleBlink(el)` | Freezes text, blinks last dot on/off (600ms) when process stalls |
+| `stopStaleBlink()` | Clears the stale blink interval |
+| `stopDots()` | Clears both cycling dots and stale blink intervals |
 | `updateLastStampText(text)` | Updates the last stamp in-place (for progress callbacks) |
 | `fadeStamps()` | Fades all stamps to opacity 0 before transitioning to Reader |
 
@@ -239,6 +247,10 @@ Stamps use a character-by-character typing animation with queue management.
 6. If text ends with `...`, `startDots()` begins cycling 1/2/3 dots
 7. When next stamp arrives, `stopDots()` halts the current cycling
 8. Pipeline progress callbacks can update the last stamp text in-place via `updateLastStampText()`
+
+### Stale process detection
+
+The dots system tracks `lastUpdateTime`. If no progress updates arrive for 3+ seconds, the dots stop cycling and switch to a stale blink mode — the last dot blinks on/off every 600ms. This gives the user visual feedback that the process is still running but not actively progressing. When a new update arrives, `lastUpdateTime` resets and normal dot cycling resumes.
 
 ---
 
@@ -428,7 +440,7 @@ Code changes to `app.py`, `ui/*`, or backend modules take effect immediately on 
 | Package | Version | Purpose |
 |---------|---------|---------|
 | pywebview | >=5.0 | Native macOS window (WebKit) |
-| yt-dlp | >=2026.2.0 | YouTube audio download |
+| yt-dlp | >=2025.1.0 | YouTube audio download |
 | mlx-whisper | >=0.4.0 | Local transcription (Apple Silicon GPU) |
 | openai | >=1.0.0 | OpenRouter API client |
 | Pillow | (build only) | Icon generation (`build_icon.py`) |

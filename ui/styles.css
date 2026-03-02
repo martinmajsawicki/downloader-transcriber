@@ -408,7 +408,7 @@ body {
    ═══════════════════════════════════════ */
 
 #screen-reader {
-  position: relative;
+  /* position: absolute inherited from .screen — do not override */
 }
 
 /* Faint gears for Reader */
@@ -452,9 +452,8 @@ body {
 
 .reader-content {
   flex: 1;
-  min-height: 0;          /* ← enables overflow in flexbox */
-  padding: 20px 50px 20px;
-  position: relative;
+  min-height: 0;
+  padding: 42px 50px 20px;
   z-index: 2;
   overflow-y: auto;
   overflow-x: hidden;
@@ -595,8 +594,8 @@ body {
 
 #screen-library .main-layout {
   display: flex;
-  flex: 1;
-  position: relative;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
   z-index: 2;
 }
 
@@ -651,6 +650,7 @@ body {
 /* Content area */
 .content-area {
   flex: 1;
+  height: 100%;           /* ← explicit height so file-list can scroll */
   display: flex;
   flex-direction: column;
   padding: 16px 28px 0 20px;
@@ -679,15 +679,15 @@ body {
 
 /* File list */
 .file-list {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 0;            /* basis:0 → definite height for WebKit scroll */
+  overflow-y: scroll;
   overflow-x: hidden;
 }
 
-.file-list::-webkit-scrollbar { width: 5px; }
+.file-list::-webkit-scrollbar { width: 6px; }
 .file-list::-webkit-scrollbar-track { background: transparent; }
-.file-list::-webkit-scrollbar-thumb { background: rgba(43,43,43,0.10); border-radius: 3px; }
-.file-list::-webkit-scrollbar-thumb:hover { background: rgba(43,43,43,0.20); }
+.file-list::-webkit-scrollbar-thumb { background: rgba(43,43,43,0.18); border-radius: 3px; }
+.file-list::-webkit-scrollbar-thumb:hover { background: rgba(43,43,43,0.32); }
 
 .file-row {
   display: flex;

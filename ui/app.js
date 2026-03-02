@@ -88,7 +88,9 @@ document.addEventListener('keydown', function(e) {
     return;
   }
 
-  if (e.key === 'ArrowLeft' && currentScreen === 'reader') {
+  if (e.key === 'ArrowLeft' && currentScreen === 'input') {
+    navigateTo('library');
+  } else if (e.key === 'ArrowLeft' && currentScreen === 'reader') {
     navigateTo('library');
   } else if (e.key === 'ArrowRight' && currentScreen === 'library') {
     navigateTo('reader');
